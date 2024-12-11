@@ -26,9 +26,9 @@ for bin in openssl curl docker git awk sha1sum grep cut; do
 done
 
 # Check Docker Version (need at least 24.X)
-docker_version=$(docker -v | grep -oP '\d+\.\d+\.\d+' | cut -d '.' -f 1)
+docker_version=$(podman -v | grep -oP '\d+\.\d+\.\d+' | cut -d '.' -f 1)
 
-if [[ $docker_version -lt 24 ]]; then
+if [[ $docker_version -lt 4 ]]; then
   echo -e "\e[31mCannot find Docker with a Version higher or equals 24.0.0\e[0m"
   echo -e "\e[33mmailcow needs a newer Docker version to work properly...\e[0m"
   echo -e "\e[31mPlease update your Docker installation... exiting\e[0m"
@@ -45,7 +45,7 @@ if docker compose > /dev/null 2>&1; then
     else
       echo -e "\e[31mCannot find Docker Compose with a Version Higher than 2.X.X.\e[0m" 
       echo -e "\e[31mPlease update/install it manually regarding to this doc site: https://docs.mailcow.email/install/\e[0m"
-      exit 1
+      #exit 1
     fi
 elif docker-compose > /dev/null 2>&1; then
   if ! [[ $(alias docker-compose 2> /dev/null) ]] ; then

@@ -1,6 +1,7 @@
 services:
 
     unbound-mailcow:
+      container_name: unbound-mailcow
       image: mailcow/unbound:1.23
       environment:
         - TZ=${TZ}
@@ -15,8 +16,10 @@ services:
           ipv4_address: ${IPV4_NETWORK:-172.22.1}.254
           aliases:
             - unbound
+            - "unbound.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     mysql-mailcow:
+      container_name: mysql-mailcow
       image: mariadb:10.5
       depends_on:
         - unbound-mailcow
@@ -40,8 +43,10 @@ services:
         mailcow-network:
           aliases:
             - mysql
+            - "mysql.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     redis-mailcow:
+      container_name: redis-mailcow
       image: redis:7-alpine
       volumes:
         - redis-vol-1:/data/
@@ -59,8 +64,10 @@ services:
           ipv4_address: ${IPV4_NETWORK:-172.22.1}.249
           aliases:
             - redis
+            - "redis.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     clamd-mailcow:
+      container_name: clamd-mailcow
       image: mailcow/clamd:1.66
       restart: always
       depends_on:
@@ -78,8 +85,10 @@ services:
         mailcow-network:
           aliases:
             - clamd
+            - "clamd.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     rspamd-mailcow:
+      container_name: rspamd-mailcow
       image: mailcow/rspamd:1.98
       stop_grace_period: 30s
       depends_on:
@@ -110,6 +119,7 @@ services:
         mailcow-network:
           aliases:
             - rspamd
+            - "rspamd.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     php-fpm-mailcow:
       image: mailcow/phpfpm:1.91.1
@@ -175,8 +185,10 @@ services:
         mailcow-network:
           aliases:
             - phpfpm
+            - "phpfpm.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     sogo-mailcow:
+      container_name: sogo-mailcow
       image: mailcow/sogo:1.127.1
       environment:
         - DBNAME=${DBNAME}
@@ -222,8 +234,10 @@ services:
           ipv4_address: ${IPV4_NETWORK:-172.22.1}.248
           aliases:
             - sogo
+            - "sogo.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     dovecot-mailcow:
+      container_name: dovecot-mailcow
       image: mailcow/dovecot:2.2
       depends_on:
         - mysql-mailcow
@@ -306,8 +320,10 @@ services:
           ipv4_address: ${IPV4_NETWORK:-172.22.1}.250
           aliases:
             - dovecot
+            - "dovecot.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     postfix-mailcow:
+      container_name: postfix-mailcow
       image: mailcow/postfix:1.77
       depends_on:
         mysql-mailcow:
@@ -346,8 +362,10 @@ services:
           ipv4_address: ${IPV4_NETWORK:-172.22.1}.253
           aliases:
             - postfix
+            - "postfix.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     memcached-mailcow:
+      container_name: memcached-mailcow
       image: memcached:alpine
       restart: always
       environment:
@@ -356,8 +374,10 @@ services:
         mailcow-network:
           aliases:
             - memcached
+            - "memcached.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     nginx-mailcow:
+      container_name: nginx-mailcow
       depends_on:
         - sogo-mailcow
         - php-fpm-mailcow
@@ -401,8 +421,10 @@ services:
         mailcow-network:
           aliases:
             - nginx
+            - "nginx.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     acme-mailcow:
+      container_name: acme-mailcow
       depends_on:
         nginx-mailcow:
           condition: service_started
@@ -443,8 +465,10 @@ services:
         mailcow-network:
           aliases:
             - acme
+            - "acme.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     netfilter-mailcow:
+      container_name: netfilter-mailcow
       image: mailcow/netfilter:1.59
       stop_grace_period: 30s
       restart: always
@@ -464,6 +488,7 @@ services:
         - /lib/modules:/lib/modules:ro
 
     watchdog-mailcow:
+      container_name: watchdog-mailcow
       image: mailcow/watchdog:2.05
       dns:
         - ${IPV4_NETWORK:-172.22.1}.254
@@ -533,8 +558,10 @@ services:
         mailcow-network:
           aliases:
             - watchdog
+            - "watchdog.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     dockerapi-mailcow:
+      container_name: dockerapi-mailcow
       image: mailcow/dockerapi:2.09
       security_opt:
         - label=disable
@@ -547,15 +574,17 @@ services:
         - REDIS_SLAVEOF_IP=${REDIS_SLAVEOF_IP:-}
         - REDIS_SLAVEOF_PORT=${REDIS_SLAVEOF_PORT:-}
       volumes:
-        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - /run/podman/podman.sock:/var/run/docker.sock:ro
       networks:
         mailcow-network:
           aliases:
             - dockerapi
+            - "dockerapi.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
 
     ##### Will be removed soon #####
     solr-mailcow:
+      container_name: solr-mailcow
       image: mailcow/solr:1.8.3
       restart: always
       depends_on:
@@ -573,9 +602,11 @@ services:
         mailcow-network:
           aliases:
             - solr
+            - "solr.${COMPOSE_PROJECT_NAME}_mailcow-network"
     ################################
 
     olefy-mailcow:
+      container_name: olefy-mailcow
       image: mailcow/olefy:1.13
       restart: always
       environment:
@@ -592,8 +623,10 @@ services:
         mailcow-network:
           aliases:
             - olefy
+            - "olefy.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     ofelia-mailcow:
+      container_name: ofelia-mailcow
       image: mcuadros/ofelia:latest
       restart: always
       command: daemon --docker -f label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}
@@ -608,11 +641,12 @@ services:
       security_opt:
         - label=disable
       volumes:
-        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - /run/podman/podman.sock:/var/run/docker.sock:ro
       networks:
         mailcow-network:
           aliases:
             - ofelia
+            - "ofelia.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     ipv6nat-mailcow:
       depends_on:
@@ -641,11 +675,12 @@ services:
       privileged: true
       network_mode: "host"
       volumes:
-        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - /run/podman/podman.sock:/var/run/docker.sock:ro
         - /lib/modules:/lib/modules:ro
 
 networks:
   mailcow-network:
+    name: mailcow-network
     driver: bridge
     driver_opts:
       com.docker.network.bridge.name: br-mailcow
