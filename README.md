@@ -1,4 +1,4 @@
-# mailcow: ~~docker~~podmanized - 🐮 + ~~🐋~~🦭 = 💕
+# mailcow: podmanized - 🐮 + 🦭 = 💕
 
 What's needed to get this (kinda) working:
 * Podman needs a sock file, usually enabled via `systemctl --enable now podman.service podman.socket`
