@@ -82,7 +82,7 @@ jobs:
             done
 
             if [ -n "$(git status --porcelain)" ]; then
-              git pull
+              git pull --no-rebase --no-ff
               git add .
               git commit -m "Automated podman adjustments for upstream changes ($branch)"
               git push origin $branch || true
