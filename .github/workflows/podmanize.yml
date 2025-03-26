@@ -43,7 +43,6 @@ jobs:
             fi
 
             # Only merge if behind
-            git rebase upstream/$branch
             git rev-list --left-right --count $branch...upstream/$branch | while read L R; do [ "$R" -eq 0 ] && continue; done
             git merge upstream/$branch --strategy-option theirs --no-commit --no-ff || true
 
