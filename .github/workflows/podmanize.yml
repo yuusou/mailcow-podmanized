@@ -76,7 +76,7 @@ jobs:
                   sed -i '/docker-compose.override\.yml/d' "$file"
                   ;;
                 docker-compose.yml)
-                  sed -i '/.*ports:\n.*HTTPS.*\n.*HTTP.*\n/d' "$file"
+                  sed -i '/ports:/ { N; /HTTPS/ { N; /HTTP/ d; } }' "$file"
                   ;;
               esac
             done
