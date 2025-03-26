@@ -29,7 +29,6 @@ jobs:
           git remote add upstream https://github.com/mailcow/mailcow-dockerized.git
           git fetch upstream --prune
           git fetch origin --prune --tags
-          git pull
           set -e
 
       - name: Podmanize branches
@@ -83,6 +82,7 @@ jobs:
             done
 
             if [ -n "$(git status --porcelain)" ]; then
+              git pull
               git add .
               git commit -m "Automated podman adjustments for upstream changes ($branch)"
               git push origin $branch || true
