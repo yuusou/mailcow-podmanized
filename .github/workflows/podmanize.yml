@@ -87,8 +87,7 @@ jobs:
 
       - name: Podmanize latest tag
         run: |
-          #for branch in $(git branch -r | grep -vE 'HEAD|->' | grep 'upstream/' | sed 's|upstream/||'); do
-          for branch in master; do
+          for branch in $(git branch -r | grep -vE 'HEAD|->' | grep 'upstream/' | sed 's|upstream/||'); do
             tag=$(git ls-remote --tags upstream | grep $(git ls-remote upstream $branch | cut -f 1) | sort -t/ -k3,3V | tail -n 1 | sed 's|.*/||')
 
             git checkout master || true
