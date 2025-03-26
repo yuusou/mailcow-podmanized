@@ -37,12 +37,12 @@ services:
           aliases:
             - "rspamd.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
-    phpfpm-mailcow:
-      container_name: phpfpm-mailcow
+    php-fpm-mailcow:
+      container_name: php-fpm-mailcow
       networks:
         mailcow-network:
           aliases:
-            - "phpfpm.${COMPOSE_PROJECT_NAME}_mailcow-network"
+            - "php-fpm.${COMPOSE_PROJECT_NAME}_mailcow-network"
 
     sogo-mailcow:
       container_name: sogo-mailcow
@@ -74,6 +74,9 @@ services:
 
     nginx-mailcow:
       container_name: nginx-mailcow
+      ports:
+        - 443:443/tcp
+        - 80:80/tcp
       networks:
         mailcow-network:
           aliases:

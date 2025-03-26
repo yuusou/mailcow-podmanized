@@ -51,6 +51,7 @@ jobs:
             [ ! -f docker-compose.override.yml ] && git checkout origin/master -- docker-compose.override.yml
             [ ! -f PODMAN.md ] && git checkout origin/master -- PODMAN.md
             git checkout upstream/master -- README.md
+            git checkout upstream/master -- docker-compose.yml
 
             # Detect file changes
             changed_files=("README.md" "generate_config.sh" "update.sh" ".gitignore")
@@ -74,7 +75,10 @@ jobs:
                   sed -i -e 's/podman-compose\.yml/docker-compose.yml/g' -e 's/hub\.podman/hub.docker/g' -e '/^migrate_podman_nat() {/a\  return 0' "$file"
                   ;;
                 .gitignore)
-                  sed -i '/docker-compose.override.yml/d' "$file"
+                  sed -i '/docker-compose.override\.yml/d' "$file"
+                  ;;
+                docker-compose.yml)
+                  sed -i '/.*ports:\n.*HTTPS.*\n.*HTTP.*\n/d' "$file"
                   ;;
               esac
             done
