@@ -29,6 +29,7 @@ jobs:
           git remote add upstream https://github.com/mailcow/mailcow-dockerized.git
           git fetch upstream --prune
           git fetch origin --prune --tags
+          git pull
           set -e
 
       - name: Podmanize branches
