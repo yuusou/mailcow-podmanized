@@ -54,21 +54,19 @@ jobs:
             git checkout upstream/master -- docker-compose.yml
 
             # Detect file changes
-            changed_files=("README.md" "generate_config.sh" "update.sh" ".gitignore")
+            changed_files=("README.md" "generate_config.sh" "update.sh" ".gitignore" "docker-compose.yml")
             for file in "${changed_files[@]}"; do
+              echo "Modifying $file..."
               case "$file" in
                 README.md)
-                  echo "Modifying $file..."
                   cat PODMAN.md README.md > PODME.md && mv PODME.md README.md
                   ;;
                 generate_config.sh)
-                  echo "Modifying $file..."
                   sed -i -e 's/docker/podman/g' -e 's/DOCKER/PODMAN/g' -e 's/Docker/Podman/g' "$file"
                   sed -i -e 's/ 24/ 4/g' -e 's/\^2/^1/g' -e 's/\^v2/^v1/g' -e 's/2\.X\.X/1.X.X/g' "$file"
                   sed -i -e 's/PODMAN_COMPOSE_VERSION/DOCKER_COMPOSE_VERSION/g' -e 's/mailcow\/mailcow/yuusou\/mailcow/g' "$file"
                   ;;
                 update.sh)
-                  echo "Modifying $file..."
                   sed -i -e 's/docker/podman/g' -e 's/DOCKER/PODMAN/g' -e 's/Docker/Podman/g' "$file"
                   sed -i -e 's/ 24/ 4/g' -e 's/\^2/^1/g' -e 's/\^v2/^v1/g' -e 's/2\.X\.X/1.X.X/g' "$file"
                   sed -i -e 's/PODMAN_COMPOSE_VERSION/DOCKER_COMPOSE_VERSION/g' -e 's/mailcow\/mailcow/yuusou\/mailcow/g' "$file"
