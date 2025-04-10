@@ -1,60 +1,52 @@
----
 name: Sync and Modify Mailcow for Podman
 
 on:
   schedule:
-    - cron: "0 0 * * *"  # Runs daily at midnight UTC
-  workflow_dispatch:  # Allows manual triggering
+    - cron: "0 0 * * *"
+  workflow_dispatch:
 
 permissions: write-all
 
 jobs:
-  sync-mailcow:
+  podmanize-master:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Your Fork
+      - name: Checkout your repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup git user
+      - name: Setup Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fetch all updates
+      - name: Fetch upstream
         run: |
-          set +e
-          branch="master"
           git remote add upstream https://github.com/mailcow/mailcow-dockerized.git
-          git fetch upstream "${branch}" --prune
-          git fetch origin "${branch}" --prune --tags
-          set -e
+          git fetch upstream --tags
+          git fetch origin --tags
 
-      - name: Podmanize branches
+      - name: Checkout master branch
         run: |
+          git checkout master
 
-          # Ensure the branch is checked out properly
-          if ! git show-ref --verify --quiet "refs/heads/${branch}"; then
-            git checkout -b "${branch}" "upstream/${branch}" || true
-          else
-            git checkout "${branch}"
-            git pull origin "${branch}" || true
-          fi
+      - name: Rebase origin/master onto upstream/master (preserving files)
+        run: |
+          git fetch upstream
+          git rebase upstream/master || true
 
-          # Only merge if behind
-          # shellcheck disable=SC2086
-          read -r behind ahead <<< "$(git rev-list --left-right --count ${branch}...upstream/${branch})"
-          [ "${ahead}" -gt 0 ] && (git merge "upstream/${branch}" --strategy-option theirs --no-commit --no-ff || true)
+          # Preserve PODMAN.md and docker-compose.override.yml if modified locally
+          git checkout --ours PODMAN.md
+          git checkout --ours docker-compose.override.yml
+          git add PODMAN.md docker-compose.override.yml
 
-          # Check if docker-compose.override.yml and PODMAN.md exist
-          [ ! -f docker-compose.override.yml ] && git checkout origin/master -- docker-compose.override.yml
-          [ ! -f PODMAN.md ] && git checkout origin/master -- PODMAN.md
-          git checkout upstream/master -- README.md
-          git checkout upstream/master -- docker-compose.yml
+          # Resolve conflicts and continue rebase
+          git rebase --continue || true
 
-          # Detect file changes
+      - name: Apply Podman modifications
+        run: |
           changed_files=("README.md" "generate_config.sh" "update.sh" ".gitignore" "docker-compose.yml")
           for file in "${changed_files[@]}"; do
             echo "Modifying $file..."
@@ -82,28 +74,25 @@ jobs:
             esac
           done
 
+      - name: Commit and push changes
+        run: |
           if [ -n "$(git status --porcelain)" ]; then
-            git pull --strategy-option ours --no-rebase --no-ff
             git add .
-            git commit -m "Automated podman adjustments for upstream changes (${branch})"
-            git push origin "${branch}" || git push origin "${branch}" --force
+            git commit -m "Automated podman adjustments for upstream/master"
+            git push origin master
           fi
 
       - name: Podmanize latest tag
         run: |
-          for branch in $(git branch -r | grep -vE 'HEAD|->' | grep 'upstream/' | sed 's|upstream/||'); do
-            tag=$(git ls-remote --tags upstream | grep "$(git ls-remote upstream "${branch}" | cut -f 1)" | sort -t/ -k3,3V | tail -n 1 | sed 's|.*/||')
+          git checkout master
 
-            git checkout master || true
-            if [ -n "${tag}" ] && ! git ls-remote --tags origin | grep -q "${tag}"; then
-              # Fetch the tag to get the description then delete it.
-              git fetch upstream tag "${tag}"
-              description=$(git show "${tag}" --no-patch --no-notes --pretty=%B)
-              git tag -d "${tag}" || true
+          # Get the latest tag pointing to upstream/master
+          latest_tag=$(git ls-remote --tags upstream | grep "$(git ls-remote upstream master | cut -f 1)" | sort -t/ -k3,3V | tail -n 1 | sed 's|.*/||')
 
-              # Create tag
-              git tag "${tag}" -m "${description}"
-              git push origin "${tag}"
-            fi
-            done
-...
+          if [ -n "$latest_tag" ] && ! git ls-remote --tags origin | grep -q "$latest_tag"; then
+            git fetch upstream tag "$latest_tag"
+            description=$(git show "$latest_tag" --no-patch --no-notes --pretty=%B)
+            git tag -d "$latest_tag" 2>/dev/null || true
+            git tag "$latest_tag" -m "$description"
+            git push origin "$latest_tag"
+          fi
