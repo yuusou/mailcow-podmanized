@@ -24,9 +24,11 @@ jobs:
 
       - name: Fetch upstream
         run: |
+          set +e
           git remote add upstream https://github.com/mailcow/mailcow-dockerized.git
-          git fetch upstream --tags
-          git fetch origin --tags
+          git fetch upstream --prune --tags  # Always fetch from upstream
+          git fetch origin --prune --tags    # Also fetch from origin
+          set -e
 
       - name: Checkout master branch
         run: |
@@ -84,15 +86,28 @@ jobs:
 
       - name: Podmanize latest tag
         run: |
-          git checkout master
+          # Get the latest tag from upstream
+          tag=$(git ls-remote --tags upstream | sort -t/ -k3,3V | tail -n 1 | sed 's|.*/||')
 
-          # Get the latest tag pointing to upstream/master
-          latest_tag=$(git ls-remote --tags upstream | grep "$(git ls-remote upstream master | cut -f 1)" | sort -t/ -k3,3V | tail -n 1 | sed 's|.*/||')
+          # Checkout the master branch
+          git checkout master || true
 
-          if [ -n "$latest_tag" ] && ! git ls-remote --tags origin | grep -q "$latest_tag"; then
-            git fetch upstream tag "$latest_tag"
-            description=$(git show "$latest_tag" --no-patch --no-notes --pretty=%B)
-            git tag -d "$latest_tag" 2>/dev/null || true
-            git tag "$latest_tag" -m "$description"
-            git push origin "$latest_tag"
+          # Check if the tag already exists on origin
+          if git ls-remote --tags origin | grep -q "${tag}"; then
+            echo "Tag ${tag} already exists on origin. Skipping tag processing."
+          else
+            # If the tag doesn't exist on origin, fetch it from upstream
+            git fetch upstream tag "${tag}"
+
+            # Get the description of the tag
+            description=$(git show "${tag}" --no-patch --no-notes --pretty=%B)
+
+            # Delete the tag locally if it exists (in case it was partially fetched)
+            git tag -d "${tag}" || true
+
+            # Create a new tag with the description
+            git tag "${tag}" -m "${description}"
+
+            # Push the tag to origin
+            git push origin "${tag}"
           fi
