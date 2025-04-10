@@ -26,14 +26,14 @@ jobs:
       - name: Fetch all updates
         run: |
           set +e
+          branch="master"
           git remote add upstream https://github.com/mailcow/mailcow-dockerized.git
-          git fetch upstream master --prune
-          git fetch origin master --prune --tags
+          git fetch upstream "${branch}" --prune
+          git fetch origin "${branch}" --prune --tags
           set -e
 
       - name: Podmanize branches
         run: |
-          branch="master"
 
           # Ensure the branch is checked out properly
           if ! git show-ref --verify --quiet "refs/heads/${branch}"; then
@@ -46,7 +46,7 @@ jobs:
           # Only merge if behind
           # shellcheck disable=SC2086
           read -r behind ahead <<< "$(git rev-list --left-right --count ${branch}...upstream/${branch})"
-          [ "$ahead" -gt 0 ] && git merge "upstream/${branch}" --strategy-option theirs --no-commit --no-ff || true
+          [ "${ahead}" -gt 0 ] && (git merge "upstream/${branch}" --strategy-option theirs --no-commit --no-ff || true)
 
           # Check if docker-compose.override.yml and PODMAN.md exist
           [ ! -f docker-compose.override.yml ] && git checkout origin/master -- docker-compose.override.yml
@@ -80,6 +80,7 @@ jobs:
                 sed -i '/ports:/ { N; /HTTPS/ { N; /HTTP/ d; } }' "$file"
                 ;;
             esac
+          done
 
           if [ -n "$(git status --porcelain)" ]; then
             git pull --strategy-option ours --no-rebase --no-ff
@@ -87,7 +88,6 @@ jobs:
             git commit -m "Automated podman adjustments for upstream changes (${branch})"
             git push origin "${branch}" || git push origin "${branch}" --force
           fi
-          #done
 
       - name: Podmanize latest tag
         run: |
