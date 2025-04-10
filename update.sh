@@ -22,7 +22,7 @@ prefetch_images() {
       fi
     fi
     RET_C=0
-    until docker pull "${image}"; do
+    until podman pull "${image}"; do
       RET_C=$((RET_C + 1))
       echo -e "\e[33m\nError pulling $image, retrying...\e[0m"
       [ ${RET_C} -gt 3 ] && { echo -e "\e[31m\nToo many failed retries, exiting\e[0m"; exit 1; }
@@ -31,14 +31,14 @@ prefetch_images() {
   done < <(git show "origin/${BRANCH}:docker-compose.yml" | grep "image:" | awk '{ gsub("image:","", $3); print $2 }')
 }
 
-docker_garbage() {
+podman_garbage() {
   SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
   IMGS_TO_DELETE=()
 
   declare -A IMAGES_INFO
   COMPOSE_IMAGES=($(grep -oP "image: \K(ghcr\.io/)?mailcow.+" "${SCRIPT_DIR}/docker-compose.yml"))
 
-  for existing_image in $(docker images --format "{{.ID}}:{{.Repository}}:{{.Tag}}" | grep -E '(mailcow/|ghcr\.io/mailcow/)'); do
+  for existing_image in $(podman images --format "{{.ID}}:{{.Repository}}:{{.Tag}}" | grep -E '(mailcow/|ghcr\.io/mailcow/)'); do
       ID=$(echo "$existing_image" | cut -d ':' -f 1)
       REPOSITORY=$(echo "$existing_image" | cut -d ':' -f 2)
       TAG=$(echo "$existing_image" | cut -d ':' -f 3)
@@ -66,16 +66,16 @@ docker_garbage() {
       if [ -z "$FORCE" ]; then
           read -r -p "Do you want to delete them to free up some space? [y/N] " response
           if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-              docker rmi ${IMGS_TO_DELETE[*]}
+              podman rmi ${IMGS_TO_DELETE[*]}
           else
               echo "OK, skipped."
           fi
       else
           echo "Running in forced mode! Force removing old mailcow images..."
-          docker rmi ${IMGS_TO_DELETE[*]}
+          podman rmi ${IMGS_TO_DELETE[*]}
       fi
       echo -e "\e[32mFurther cleanup...\e[0m"
-      echo "If you want to cleanup further garbage collected by Docker, please make sure all containers are up and running before cleaning your system by executing \"docker system prune\""
+      echo "If you want to cleanup further garbage collected by Podman, please make sure all containers are up and running before cleaning your system by executing \"podman system prune\""
   fi
 }
 
@@ -86,73 +86,74 @@ in_array() {
   return 1
 }
 
-migrate_docker_nat() {
+migrate_podman_nat() {
+  return 0
   NAT_CONFIG='{"ipv6":true,"fixed-cidr-v6":"fd00:dead:beef:c0::/80","experimental":true,"ip6tables":true}'
-  # Min Docker version
-  DOCKERV_REQ=20.10.2
-  # Current Docker version
-  DOCKERV_CUR=$(docker version -f '{{.Server.Version}}')
+  # Min Podman version
+  PODMANV_REQ=20.10.2
+  # Current Podman version
+  PODMANV_CUR=$(podman version -f '{{.Server.Version}}')
   if grep -qi "ipv6nat-mailcow" docker-compose.yml && grep -qi "enable_ipv6: true" docker-compose.yml; then
     echo -e "\e[32mNative IPv6 implementation available.\e[0m"
-    echo "This will enable experimental features in the Docker daemon and configure Docker to do the IPv6 NATing instead of ipv6nat-mailcow."
+    echo "This will enable experimental features in the Podman daemon and configure Podman to do the IPv6 NATing instead of ipv6nat-mailcow."
     echo '!!! This step is recommended !!!'
-    echo "mailcow will try to roll back the changes if starting Docker fails after modifying the daemon.json configuration file."
-    read -r -p "Should we try to enable the native IPv6 implementation in Docker now (recommended)? [y/N] " dockernatresponse
-    if [[ ! "${dockernatresponse}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+    echo "mailcow will try to roll back the changes if starting Podman fails after modifying the daemon.json configuration file."
+    read -r -p "Should we try to enable the native IPv6 implementation in Podman now (recommended)? [y/N] " podmannatresponse
+    if [[ ! "${podmannatresponse}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
       echo "OK, skipping this step."
       return 0
     fi
   fi
   # Sort versions and check if we are running a newer or equal version to req
-  if [ $(printf "${DOCKERV_REQ}\n${DOCKERV_CUR}" | sort -V | tail -n1) == "${DOCKERV_CUR}" ]; then
-    # If Dockerd daemon json exists
-    if [ -s /etc/docker/daemon.json ]; then
-      IFS=',' read -r -a dockerconfig <<< $(cat /etc/docker/daemon.json | tr -cd '[:alnum:],')
-      if ! in_array ipv6true "${dockerconfig[@]}" || \
-        ! in_array experimentaltrue "${dockerconfig[@]}" || \
-        ! in_array ip6tablestrue "${dockerconfig[@]}" || \
-        ! grep -qi "fixed-cidr-v6" /etc/docker/daemon.json; then
-          echo -e "\e[33mWarning:\e[0m You seem to have modified the /etc/docker/daemon.json configuration by yourself and not fully/correctly activated the native IPv6 NAT implementation."
+  if [ $(printf "${PODMANV_REQ}\n${PODMANV_CUR}" | sort -V | tail -n1) == "${PODMANV_CUR}" ]; then
+    # If Podmand daemon json exists
+    if [ -s /etc/podman/daemon.json ]; then
+      IFS=',' read -r -a podmanconfig <<< $(cat /etc/podman/daemon.json | tr -cd '[:alnum:],')
+      if ! in_array ipv6true "${podmanconfig[@]}" || \
+        ! in_array experimentaltrue "${podmanconfig[@]}" || \
+        ! in_array ip6tablestrue "${podmanconfig[@]}" || \
+        ! grep -qi "fixed-cidr-v6" /etc/podman/daemon.json; then
+          echo -e "\e[33mWarning:\e[0m You seem to have modified the /etc/podman/daemon.json configuration by yourself and not fully/correctly activated the native IPv6 NAT implementation."
           echo "You will need to merge your existing configuration manually or fix/delete the existing daemon.json configuration before trying the update process again."
-          echo -e "Please merge the following content and restart the Docker daemon:\n"
+          echo -e "Please merge the following content and restart the Podman daemon:\n"
           echo "${NAT_CONFIG}"
           return 1
       fi
     else
       echo "Working on IPv6 NAT, please wait..."
-      echo "${NAT_CONFIG}" > /etc/docker/daemon.json
+      echo "${NAT_CONFIG}" > /etc/podman/daemon.json
       ip6tables -F -t nat
-      [[ -e /etc/rc.conf ]] && rc-service docker restart || systemctl restart docker.service
+      [[ -e /etc/rc.conf ]] && rc-service podman restart || systemctl restart podman.service
       if [[ $? -ne 0 ]]; then
         echo -e "\e[31mError:\e[0m Failed to activate IPv6 NAT! Reverting and exiting."
-        rm /etc/docker/daemon.json
+        rm /etc/podman/daemon.json
         if [[ -e /etc/rc.conf ]]; then
-          rc-service docker restart
+          rc-service podman restart
         else
-          systemctl reset-failed docker.service
-          systemctl restart docker.service
+          systemctl reset-failed podman.service
+          systemctl restart podman.service
         fi
         return 1
       fi
     fi
     # Removing legacy container
     sed -i '/ipv6nat-mailcow:$/,/^$/d' docker-compose.yml
-    if [ -s docker-compose.override.yml ]; then
-        sed -i '/ipv6nat-mailcow:$/,/^$/d' docker-compose.override.yml
-        if [[ "$(cat docker-compose.override.yml | sed '/^\s*$/d' | wc -l)" == "2" ]]; then
-            mv docker-compose.override.yml docker-compose.override.yml_backup
+    if [ -s podman-compose.override.yml ]; then
+        sed -i '/ipv6nat-mailcow:$/,/^$/d' podman-compose.override.yml
+        if [[ "$(cat podman-compose.override.yml | sed '/^\s*$/d' | wc -l)" == "2" ]]; then
+            mv podman-compose.override.yml podman-compose.override.yml_backup
         fi
     fi
     echo -e "\e[32mGreat! \e[0mNative IPv6 NAT is active.\e[0m"
   else
-    echo -e "\e[31mPlease upgrade Docker to version ${DOCKERV_REQ} or above.\e[0m"
+    echo -e "\e[31mPlease upgrade Podman to version ${PODMANV_REQ} or above.\e[0m"
     return 0
   fi
 }
 
 remove_obsolete_nginx_ports() {
-    # Removing obsolete docker-compose.override.yml
-    for override in docker-compose.override.yml docker-compose.override.yaml; do
+    # Removing obsolete podman-compose.override.yml
+    for override in podman-compose.override.yml podman-compose.override.yaml; do
     if [ -s $override ] ; then
         if cat $override | grep nginx-mailcow > /dev/null 2>&1; then
           if cat $override | grep -E '(\[::])' > /dev/null 2>&1; then
@@ -174,59 +175,59 @@ remove_obsolete_nginx_ports() {
     done
 }
 
-detect_docker_compose_command(){
+detect_podman_compose_command(){
 if ! [[ "${DOCKER_COMPOSE_VERSION}" =~ ^(native|standalone)$ ]]; then
-  if docker compose > /dev/null 2>&1; then
-      if docker compose version --short | grep -e "^2." -e "^v2." > /dev/null 2>&1; then
+  if podman compose > /dev/null 2>&1; then
+      if podman compose version --short | grep -e "^1." -e "^v1." > /dev/null 2>&1; then
         DOCKER_COMPOSE_VERSION=native
-        COMPOSE_COMMAND="docker compose"
-        echo -e "\e[33mFound Docker Compose Plugin (native).\e[0m"
+        COMPOSE_COMMAND="podman compose"
+        echo -e "\e[33mFound Podman Compose Plugin (native).\e[0m"
         echo -e "\e[33mSetting the DOCKER_COMPOSE_VERSION Variable to native\e[0m"
         sed -i 's/^DOCKER_COMPOSE_VERSION=.*/DOCKER_COMPOSE_VERSION=native/' "$SCRIPT_DIR/mailcow.conf"
         sleep 2
         echo -e "\e[33mNotice: You'll have to update this Compose Version via your Package Manager manually!\e[0m"
       else
-        echo -e "\e[31mCannot find Docker Compose with a Version Higher than 2.X.X.\e[0m"
+        echo -e "\e[31mCannot find Podman Compose with a Version Higher than 1.X.X.\e[0m"
         echo -e "\e[31mPlease update/install it manually regarding to this doc site: https://docs.mailcow.email/install/\e[0m"
         exit 1
       fi
-  elif docker-compose > /dev/null 2>&1; then
-    if ! [[ $(alias docker-compose 2> /dev/null) ]] ; then
-      if docker-compose version --short | grep "^2." > /dev/null 2>&1; then
+  elif podman-compose > /dev/null 2>&1; then
+    if ! [[ $(alias podman-compose 2> /dev/null) ]] ; then
+      if podman-compose version --short | grep "^1." > /dev/null 2>&1; then
         DOCKER_COMPOSE_VERSION=standalone
-        COMPOSE_COMMAND="docker-compose"
-        echo -e "\e[33mFound Docker Compose Standalone.\e[0m"
+        COMPOSE_COMMAND="podman-compose"
+        echo -e "\e[33mFound Podman Compose Standalone.\e[0m"
         echo -e "\e[33mSetting the DOCKER_COMPOSE_VERSION Variable to standalone\e[0m"
         sed -i 's/^DOCKER_COMPOSE_VERSION=.*/DOCKER_COMPOSE_VERSION=standalone/' "$SCRIPT_DIR/mailcow.conf"
         sleep 2
-        echo -e "\e[33mNotice: For an automatic update of docker-compose please use the update_compose.sh scripts located at the helper-scripts folder.\e[0m"
+        echo -e "\e[33mNotice: For an automatic update of podman-compose please use the update_compose.sh scripts located at the helper-scripts folder.\e[0m"
       else
-        echo -e "\e[31mCannot find Docker Compose with a Version Higher than 2.X.X.\e[0m"
+        echo -e "\e[31mCannot find Podman Compose with a Version Higher than 1.X.X.\e[0m"
         echo -e "\e[31mPlease update/install regarding to this doc site: https://docs.mailcow.email/install/\e[0m"
         exit 1
       fi
     fi
 
   else
-    echo -e "\e[31mCannot find Docker Compose.\e[0m"
+    echo -e "\e[31mCannot find Podman Compose.\e[0m"
     echo -e "\e[31mPlease install it regarding to this doc site: https://docs.mailcow.email/install/\e[0m"
     exit 1
   fi
 
 elif [ "${DOCKER_COMPOSE_VERSION}" == "native" ]; then
-  COMPOSE_COMMAND="docker compose"
+  COMPOSE_COMMAND="podman compose"
   # Check if Native Compose works and has not been deleted
   if ! $COMPOSE_COMMAND > /dev/null 2>&1; then
     # IF it not exists/work anymore try the other command
-    COMPOSE_COMMAND="docker-compose"
-    if ! $COMPOSE_COMMAND > /dev/null 2>&1 || ! $COMPOSE_COMMAND --version | grep "^2." > /dev/null 2>&1; then
+    COMPOSE_COMMAND="podman-compose"
+    if ! $COMPOSE_COMMAND > /dev/null 2>&1 || ! $COMPOSE_COMMAND --version | grep "^1." > /dev/null 2>&1; then
       # IF it cannot find Standalone in > 2.X, then script stops
-      echo -e "\e[31mCannot find Docker Compose or the Version is lower then 2.X.X.\e[0m"
+      echo -e "\e[31mCannot find Podman Compose or the Version is lower then 1.X.X.\e[0m"
       echo -e "\e[31mPlease install it regarding to this doc site: https://docs.mailcow.email/install/\e[0m"
       exit 1
     fi
       # If it finds the standalone Plugin it will use this instead and change the mailcow.conf Variable accordingly
-      echo -e "\e[31mFound different Docker Compose Version then declared in mailcow.conf!\e[0m"
+      echo -e "\e[31mFound different Podman Compose Version then declared in mailcow.conf!\e[0m"
       echo -e "\e[31mSetting the DOCKER_COMPOSE_VERSION Variable from native to standalone\e[0m"
       sed -i 's/^DOCKER_COMPOSE_VERSION=.*/DOCKER_COMPOSE_VERSION=standalone/' "$SCRIPT_DIR/mailcow.conf"
       sleep 2
@@ -234,19 +235,19 @@ elif [ "${DOCKER_COMPOSE_VERSION}" == "native" ]; then
 
 
 elif [ "${DOCKER_COMPOSE_VERSION}" == "standalone" ]; then
-  COMPOSE_COMMAND="docker-compose"
+  COMPOSE_COMMAND="podman-compose"
   # Check if Standalone Compose works and has not been deleted
-  if ! $COMPOSE_COMMAND > /dev/null 2>&1 && ! $COMPOSE_COMMAND --version > /dev/null 2>&1 | grep "^2." > /dev/null 2>&1; then
+  if ! $COMPOSE_COMMAND > /dev/null 2>&1 && ! $COMPOSE_COMMAND --version > /dev/null 2>&1 | grep "^1." > /dev/null 2>&1; then
     # IF it not exists/work anymore try the other command
-    COMPOSE_COMMAND="docker compose"
+    COMPOSE_COMMAND="podman compose"
     if ! $COMPOSE_COMMAND > /dev/null 2>&1; then
       # IF it cannot find Native in > 2.X, then script stops
-      echo -e "\e[31mCannot find Docker Compose.\e[0m"
+      echo -e "\e[31mCannot find Podman Compose.\e[0m"
       echo -e "\e[31mPlease install it regarding to this doc site: https://docs.mailcow.email/install/\e[0m"
       exit 1
     fi
       # If it finds the native Plugin it will use this instead and change the mailcow.conf Variable accordingly
-      echo -e "\e[31mFound different Docker Compose Version then declared in mailcow.conf!\e[0m"
+      echo -e "\e[31mFound different Podman Compose Version then declared in mailcow.conf!\e[0m"
       echo -e "\e[31mSetting the DOCKER_COMPOSE_VERSION Variable from standalone to native\e[0m"
       sed -i 's/^DOCKER_COMPOSE_VERSION=.*/DOCKER_COMPOSE_VERSION=native/' "$SCRIPT_DIR/mailcow.conf"
       sleep 2
@@ -294,7 +295,7 @@ fix_broken_dnslist_conf() {
   # Check if the file contains the autogenerated comment
   if grep -q "# Autogenerated by mailcow" "$file"; then
       # Ask the user if custom changes were made
-      echo -e "\e[91mWARNING!!! \e[31mAn old version of dns_blocklists.cf has been detected which may cause a broken postfix upon startup (see: https://github.com/mailcow/mailcow-dockerized/issues/6143)...\e[0m"
+      echo -e "\e[91mWARNING!!! \e[31mAn old version of dns_blocklists.cf has been detected which may cause a broken postfix upon startup (see: https://github.com/yuusou/mailcow-podmanized/issues/6143)...\e[0m"
       echo -e "\e[31mIf you have any custom settings in there you might copy it away and adapt the changes after the file is regenerated...\e[0m"
       read -p "Do you want to delete the file now and let mailcow regenerate it properly? [y/n]" response
       if [[ "${response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
@@ -371,12 +372,12 @@ adapt_new_options() {
     elif [[ ${option} == "COMPOSE_PROJECT_NAME" ]]; then
       if ! grep -q ${option} mailcow.conf; then
         echo "Adding new option \"${option}\" to mailcow.conf"
-        echo "COMPOSE_PROJECT_NAME=mailcowdockerized" >> mailcow.conf
+        echo "COMPOSE_PROJECT_NAME=mailcowpodmanized" >> mailcow.conf
       fi
     elif [[ ${option} == "DOCKER_COMPOSE_VERSION" ]]; then
       if ! grep -q ${option} mailcow.conf; then
         echo "Adding new option \"${option}\" to mailcow.conf"
-        echo "# Used Docker Compose version" >> mailcow.conf
+        echo "# Used Podman Compose version" >> mailcow.conf
         echo "# Switch here between native (compose plugin) and standalone" >> mailcow.conf
         echo "# For more informations take a look at the mailcow docs regarding the configuration options." >> mailcow.conf
         echo "# Normally this should be untouched but if you decided to use either of those you can switch it manually here." >> mailcow.conf
@@ -613,7 +614,7 @@ adapt_new_options() {
         echo "Adding new option \"${option}\" to mailcow.conf"
         echo "# WebAuthn device manufacturer verification" >> mailcow.conf
         echo '# After setting WEBAUTHN_ONLY_TRUSTED_VENDORS=y only devices from trusted manufacturers are allowed' >> mailcow.conf
-        echo '# root certificates can be placed for validation under mailcow-dockerized/data/web/inc/lib/WebAuthn/rootCertificates' >> mailcow.conf
+        echo '# root certificates can be placed for validation under mailcow-podmanized/data/web/inc/lib/WebAuthn/rootCertificates' >> mailcow.conf
         echo 'WEBAUTHN_ONLY_TRUSTED_VENDORS=n' >> mailcow.conf
       fi
     elif [[ ${option} == "SPAMHAUS_DQS_KEY" ]]; then
@@ -641,7 +642,7 @@ adapt_new_options() {
     elif [[ ${option} == "DISABLE_NETFILTER_ISOLATION_RULE" ]]; then
       if ! grep -q ${option} mailcow.conf; then
         echo "Adding new option \"${option}\" to mailcow.conf"
-        echo '# Prevent netfilter from setting an iptables/nftables rule to isolate the mailcow docker network - y/n' >> mailcow.conf
+        echo '# Prevent netfilter from setting an iptables/nftables rule to isolate the mailcow podman network - y/n' >> mailcow.conf
         echo '# CAUTION: Disabling this may expose container ports to other neighbors on the same subnet, even if the ports are bound to localhost' >> mailcow.conf
         echo 'DISABLE_NETFILTER_ISOLATION_RULE=n' >> mailcow.conf
       fi
@@ -687,7 +688,7 @@ migrate_solr_config_options() {
     sed -i '/\bFLATCURVE_EXPERIMENTAL\b/d' mailcow.conf
   fi
 
-  solr_volume=$(docker volume ls -qf name=^${COMPOSE_PROJECT_NAME}_solr-vol-1)
+  solr_volume=$(podman volume ls -qf name=^${COMPOSE_PROJECT_NAME}_solr-vol-1)
   if [[ -n $solr_volume ]]; then
     echo -e "\e[34mSolr has been replaced within mailcow since 2025-01.\nThe volume $solr_volume is unused.\e[0m"
     sleep 1
@@ -695,14 +696,14 @@ migrate_solr_config_options() {
       read -r -p "Remove $solr_volume? [y/N] " response
       if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
         echo -e "\e[33mRemoving $solr_volume...\e[0m"
-        docker volume rm $solr_volume || echo -e "\e[31mFailed to remove. Remove it manually!\e[0m"
+        podman volume rm $solr_volume || echo -e "\e[31mFailed to remove. Remove it manually!\e[0m"
         echo -e "\e[32mSuccessfully removed $solr_volume!\e[0m"
       else
-        echo -e "Not removing $solr_volume. Run \`docker volume rm $solr_volume\` manually if needed."
+        echo -e "Not removing $solr_volume. Run \`podman volume rm $solr_volume\` manually if needed."
       fi
     else
       echo -e "\e[33mForce removing $solr_volume...\e[0m"
-      docker volume rm $solr_volume || echo -e "\e[31mFailed to remove. Remove it manually!\e[0m"
+      podman volume rm $solr_volume || echo -e "\e[31mFailed to remove. Remove it manually!\e[0m"
       echo -e "\e[32mSuccessfully removed $solr_volume!\e[0m"
     fi
   fi
@@ -732,7 +733,7 @@ detect_major_update() {
     if [[ -z "$current_version" ]]; then
       return 1
     fi
-    release_url="https://github.com/mailcow/mailcow-dockerized/releases/tag"
+    release_url="https://github.com/yuusou/mailcow-podmanized/releases/tag"
 
     updates_to_apply=()
 
@@ -806,20 +807,20 @@ umask 0022
 unset COMPOSE_COMMAND
 unset DOCKER_COMPOSE_VERSION
 
-for bin in curl docker git awk sha1sum grep cut; do
+for bin in curl podman git awk sha1sum grep cut; do
   if [[ -z $(command -v ${bin}) ]]; then
   echo "Cannot find ${bin}, exiting..."
   exit 1;
   fi
 done
 
-# Check Docker Version (need at least 24.X)
-docker_version=$(docker -v | grep -oP '\d+\.\d+\.\d+' | cut -d '.' -f 1 | head -1)
+# Check Podman Version (need at least 4.X)
+podman_version=$(podman -v | grep -oP '\d+\.\d+\.\d+' | cut -d '.' -f 1 | head -1)
 
-if [[ $docker_version -lt 24 ]]; then
-  echo -e "\e[31mCannot find Docker with a Version higher or equals 24.0.0\e[0m"
-  echo -e "\e[33mmailcow needs a newer Docker version to work properly... continuing on your own risk!\e[0m"
-  echo -e "\e[31mPlease update your Docker installation... sleeping 10s\e[0m"
+if [[ $podman_version -lt 4 ]]; then
+  echo -e "\e[31mCannot find Podman with a Version higher or equals 4.0.0\e[0m"
+  echo -e "\e[33mmailcow needs a newer Podman version to work properly... continuing on your own risk!\e[0m"
+  echo -e "\e[31mPlease update your Podman installation... sleeping 10s\e[0m"
   sleep 10
 fi
 
@@ -831,13 +832,13 @@ while (($#)); do
   case "${1}" in
     --check|-c)
       echo "Checking remote code for updates..."
-      LATEST_REV=$(git ls-remote --exit-code --refs --quiet https://github.com/mailcow/mailcow-dockerized "${BRANCH}" | cut -f1)
+      LATEST_REV=$(git ls-remote --exit-code --refs --quiet https://github.com/yuusou/mailcow-podmanized "${BRANCH}" | cut -f1)
       if [ "$?" -ne 0 ]; then
         echo "A problem occurred while trying to fetch the latest revision from github."
         exit 99
       fi
       if [[ -z $(git log HEAD --pretty=format:"%H" | grep "${LATEST_REV}") ]]; then
-        echo -e "Updated code is available.\nThe changes can be found here: https://github.com/mailcow/mailcow-dockerized/commits/master"
+        echo -e "Updated code is available.\nThe changes can be found here: https://github.com/yuusou/mailcow-podmanized/commits/master"
         git log --date=short --pretty=format:"%ad - %s" "$(git rev-parse --short HEAD)"..origin/master
         exit 0
       else
@@ -853,7 +854,7 @@ while (($#)); do
         exit 99
       fi
       if [[ -z $(git log HEAD --pretty=format:"%H" | grep "${LATEST_TAG_REV}") ]]; then
-        echo -e "New tag is available.\nThe changes can be found here: https://github.com/mailcow/mailcow-dockerized/releases/latest"
+        echo -e "New tag is available.\nThe changes can be found here: https://github.com/yuusou/mailcow-podmanized/releases/latest"
         exit 0
       else
         echo "No updates available."
@@ -875,7 +876,7 @@ while (($#)); do
     ;;
     --gc)
       echo -e "\e[32mCollecting garbage...\e[0m"
-      docker_garbage
+      podman_garbage
       exit 0
     ;;
     --nightly)
@@ -925,7 +926,7 @@ done
 chmod 600 mailcow.conf
 source mailcow.conf
 
-detect_docker_compose_command
+detect_podman_compose_command
 
 fix_broken_dnslist_conf
 
@@ -940,7 +941,7 @@ elif [[ "${MAILCOW_HOSTNAME: -1}" == "." ]]; then
   exit 1
 elif [ ${#DOTS} -eq 1 ]; then
   echo -e "\e[33mMAILCOW_HOSTNAME (${MAILCOW_HOSTNAME}) does not contain a Subdomain. This is not fully tested and may cause issues.\e[0m"
-  echo "Find more information about why this message exists here: https://github.com/mailcow/mailcow-dockerized/issues/1572"
+  echo "Find more information about why this message exists here: https://github.com/yuusou/mailcow-podmanized/issues/1572"
   read -r -p "Do you want to proceed anyway? [y/N] " response
   if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
     echo "OK. Proceeding."
@@ -1015,12 +1016,12 @@ for option in "${CONFIG_ARRAY[@]}"; do
   elif [[ "${option}" == "COMPOSE_PROJECT_NAME" ]]; then
     if ! grep -q "${option}" mailcow.conf; then
       echo "Adding new option \"${option}\" to mailcow.conf"
-      echo "COMPOSE_PROJECT_NAME=mailcowdockerized" >> mailcow.conf
+      echo "COMPOSE_PROJECT_NAME=mailcowpodmanized" >> mailcow.conf
     fi
   elif [[ "${option}" == "DOCKER_COMPOSE_VERSION" ]]; then
     if ! grep -q "${option}" mailcow.conf; then
       echo "Adding new option \"${option}\" to mailcow.conf"
-      echo "# Used Docker Compose version" >> mailcow.conf
+      echo "# Used Podman Compose version" >> mailcow.conf
       echo "# Switch here between native (compose plugin) and standalone" >> mailcow.conf
       echo "# For more informations take a look at the mailcow docs regarding the configuration options." >> mailcow.conf
       echo "# Normally this should be untouched but if you decided to use either of those you can switch it manually here." >> mailcow.conf
@@ -1246,7 +1247,7 @@ for option in "${CONFIG_ARRAY[@]}"; do
       echo "Adding new option \"${option}\" to mailcow.conf"
       echo "# WebAuthn device manufacturer verification" >> mailcow.conf
       echo '# After setting WEBAUTHN_ONLY_TRUSTED_VENDORS=y only devices from trusted manufacturers are allowed' >> mailcow.conf
-      echo '# root certificates can be placed for validation under mailcow-dockerized/data/web/inc/lib/WebAuthn/rootCertificates' >> mailcow.conf
+      echo '# root certificates can be placed for validation under mailcow-podmanized/data/web/inc/lib/WebAuthn/rootCertificates' >> mailcow.conf
       echo 'WEBAUTHN_ONLY_TRUSTED_VENDORS=n' >> mailcow.conf
     fi
   elif [[ "${option}" == "SPAMHAUS_DQS_KEY" ]]; then
@@ -1274,7 +1275,7 @@ for option in "${CONFIG_ARRAY[@]}"; do
   elif [[ "${option}" == "DISABLE_NETFILTER_ISOLATION_RULE" ]]; then
     if ! grep -q "${option}" mailcow.conf; then
       echo "Adding new option \"${option}\" to mailcow.conf"
-      echo '# Prevent netfilter from setting an iptables/nftables rule to isolate the mailcow docker network - y/n' >> mailcow.conf
+      echo '# Prevent netfilter from setting an iptables/nftables rule to isolate the mailcow podman network - y/n' >> mailcow.conf
       echo '# CAUTION: Disabling this may expose container ports to other neighbors on the same subnet, even if the ports are bound to localhost' >> mailcow.conf
       echo 'DISABLE_NETFILTER_ISOLATION_RULE=n' >> mailcow.conf
     fi
@@ -1423,18 +1424,18 @@ if [ ! "$DEV" ]; then
 fi
 
 if [ ! "$FORCE" ]; then
-  read -r -p "Are you sure you want to update mailcow: dockerized? All containers will be stopped. [y/N] " response
+  read -r -p "Are you sure you want to update mailcow: podmanized? All containers will be stopped. [y/N] " response
   if [[ ! "${response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
     echo "OK, exiting."
     exit 0
   fi
   detect_major_update
-  migrate_docker_nat
+  migrate_podman_nat
 fi
 
 remove_obsolete_nginx_ports
 
-echo -e "\e[32mValidating docker-compose stack configuration...\e[0m"
+echo -e "\e[32mValidating podman-compose stack configuration...\e[0m"
 sed -i 's/HTTPS_BIND:-:/HTTPS_BIND:-/g' docker-compose.yml
 sed -i 's/HTTP_BIND:-:/HTTP_BIND:-/g' docker-compose.yml
 if ! $COMPOSE_COMMAND config -q; then
@@ -1443,7 +1444,7 @@ if ! $COMPOSE_COMMAND config -q; then
 fi
 
 echo -e "\e[32mChecking for conflicting bridges...\e[0m"
-MAILCOW_BRIDGE=$($COMPOSE_COMMAND config | grep -i com.docker.network.bridge.name | cut -d':' -f2)
+MAILCOW_BRIDGE=$($COMPOSE_COMMAND config | grep -i com.podman.network.bridge.name | cut -d':' -f2)
 while read NAT_ID; do
   iptables -t nat -D POSTROUTING "$NAT_ID"
 done < <(iptables -L -vn -t nat --line-numbers | grep "$IPV4_NETWORK" | grep -E 'MASQUERADE.*all' | grep -v "${MAILCOW_BRIDGE}" | cut -d' ' -f1)
@@ -1468,7 +1469,7 @@ $COMPOSE_COMMAND down
 echo -e "\e[32mChecking for remaining containers...\e[0m"
 sleep 2
 for container in "${MAILCOW_CONTAINERS[@]}"; do
-  docker rm -f "$container" 2> /dev/null
+  podman rm -f "$container" 2> /dev/null
 done
 
 [[ -f data/conf/nginx/ZZZ-ejabberd.conf ]] && rm data/conf/nginx/ZZZ-ejabberd.conf
@@ -1476,9 +1477,9 @@ migrate_solr_config_options
 adapt_new_options
 
 # Silently fixing remote url from andryyy to mailcow
-# git remote set-url origin https://github.com/mailcow/mailcow-dockerized
+# git remote set-url origin https://github.com/yuusou/mailcow-podmanized
 
-DEFAULT_REPO="https://github.com/mailcow/mailcow-dockerized"
+DEFAULT_REPO="https://github.com/yuusou/mailcow-podmanized"
 CURRENT_REPO=$(git config --get remote.origin.url)
 if [ "$CURRENT_REPO" != "$DEFAULT_REPO" ]; then
   echo "The Repository currently used is not the default Mailcow Repository."
@@ -1589,8 +1590,8 @@ if [ $? -eq 0 ]; then
   echo '  $MAILCOW_GIT_VERSION="'$mailcow_git_version'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_LAST_GIT_VERSION="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_OWNER="mailcow";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_REPO="mailcow-dockerized";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_URL="https://github.com/mailcow/mailcow-dockerized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_REPO="mailcow-podmanized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_URL="https://github.com/yuusou/mailcow-podmanized";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT="'$mailcow_git_commit'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT_DATE="'$mailcow_git_commit_date'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_BRANCH="'$BRANCH'";' >> data/web/inc/app_info.inc.php
@@ -1601,8 +1602,8 @@ else
   echo '  $MAILCOW_GIT_VERSION="'$mailcow_git_version'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_LAST_GIT_VERSION="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_OWNER="mailcow";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_REPO="mailcow-dockerized";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_URL="https://github.com/mailcow/mailcow-dockerized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_REPO="mailcow-podmanized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_URL="https://github.com/yuusou/mailcow-podmanized";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT_DATE="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_BRANCH="'$BRANCH'";' >> data/web/inc/app_info.inc.php
@@ -1620,7 +1621,7 @@ else
 fi
 
 echo -e "\e[32mCollecting garbage...\e[0m"
-docker_garbage
+podman_garbage
 
 # Run post-update-hook
 if [ -f "${SCRIPT_DIR}/post_update_hook.sh" ]; then
