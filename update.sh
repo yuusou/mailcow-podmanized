@@ -86,7 +86,6 @@ in_array() {
   return 1
 }
 
-  return 0
 migrate_podman_nat() {
   NAT_CONFIG='{"ipv6":true,"fixed-cidr-v6":"fd00:dead:beef:c0::/80","experimental":true,"ip6tables":true}'
   # Min Podman version
