@@ -9,6 +9,7 @@ This is an attempt to get mailcow working on podman.
 Results so far:
 * IPv6 disabled and won't be supported for the time being. The ipv6nat container keeps crashing anyway.
 * All the containers (bar ipv6nat) come up and communicate with each other.
+* Only master branch is supported.
 
 Kudos to the mailcow team, show your support by visiting their repo.
 
@@ -26,6 +27,22 @@ Please [consider a support contract with Servercow](https://www.servercow.de/mai
 You can also [get a SAL](https://www.servercow.de/mailcow?lang=en#sal) which is a one-time payment with no liabilities or returning fees.
 
 Or just spread the word: moo.
+
+## Many thanks to our GitHub Sponsors ❤️
+A big thank you to everyone supporting us on GitHub Sponsors—your contributions mean the world to us! Special thanks to the following amazing supporters:
+
+### 100$/Month Sponsors
+  <a href="https://www.colba.net/" target=_blank><img
+    src="https://avatars.githubusercontent.com/u/204464723" height="58"
+  /></a>
+  <a href="https://www.maehdros.com/" target=_blank><img
+    src="https://avatars.githubusercontent.com/u/173894712" height="58"
+  /></a>
+
+### 50$/Month Sponsors
+  <a href="https://github.com/vnukhr" target=_blank><img
+    src="https://avatars.githubusercontent.com/u/7805987?s=52&v=4" height="58"
+  /></a>
 
 ## Info, documentation and support
 
