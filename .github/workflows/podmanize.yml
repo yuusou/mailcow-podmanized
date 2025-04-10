@@ -54,7 +54,7 @@ jobs:
             echo "Modifying ${file}..."
             case "${file}" in
               README.md)
-                grep -q "podmanized" README.md || cat PODMAN.md README.md > PODME.md && mv PODME.md README.md
+                grep -q "podmanized" README.md || (cat PODMAN.md README.md > PODME.md && mv PODME.md README.md)
                 ;;
               generate_config.sh)
                 sed -i -e 's/docker/podman/g' -e 's/DOCKER/PODMAN/g' -e 's/Docker/Podman/g' "${file}"
