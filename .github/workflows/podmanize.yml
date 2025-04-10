@@ -33,6 +33,8 @@ jobs:
 
       - name: Podmanize branches
         run: |
+          branch="master"
+
           # Ensure the branch is checked out properly
           if ! git show-ref --verify --quiet "refs/heads/${branch}"; then
             git checkout -b "${branch}" "upstream/${branch}" || true
