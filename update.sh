@@ -6,8 +6,6 @@ check_online_status() {
   CHECK_ONLINE_DOMAINS=('https://github.com' 'https://hub.docker.com')
   for domain in "${CHECK_ONLINE_DOMAINS[@]}"; do
     if timeout 6 curl --head --silent --output /dev/null ${domain}; then
-      return 0
-    fi
   done
   return 1
 }
@@ -87,6 +85,7 @@ in_array() {
 }
 
 migrate_podman_nat() {
+  return 0
   NAT_CONFIG='{"ipv6":true,"fixed-cidr-v6":"fd00:dead:beef:c0::/80","experimental":true,"ip6tables":true}'
   # Min Podman version
   PODMANV_REQ=20.10.2
@@ -100,8 +99,6 @@ migrate_podman_nat() {
     read -r -p "Should we try to enable the native IPv6 implementation in Podman now (recommended)? [y/N] " podmannatresponse
     if [[ ! "${podmannatresponse}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
       echo "OK, skipping this step."
-      return 0
-    fi
   fi
   # Sort versions and check if we are running a newer or equal version to req
   if [ $(printf "${PODMANV_REQ}\n${PODMANV_CUR}" | sort -V | tail -n1) == "${PODMANV_CUR}" ]; then
@@ -146,8 +143,6 @@ migrate_podman_nat() {
     echo -e "\e[32mGreat! \e[0mNative IPv6 NAT is active.\e[0m"
   else
     echo -e "\e[31mPlease upgrade Podman to version ${PODMANV_REQ} or above.\e[0m"
-    return 0
-  fi
 }
 
 remove_obsolete_nginx_ports() {
@@ -300,8 +295,6 @@ fix_broken_dnslist_conf() {
       if [[ "${response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
         rm "$file"
         echo -e "\e[32mdns_blocklists.cf has been deleted and will be properly regenerated"
-        return 0
-      else
         echo -e "\e[35mOk, not deleting it! Please make sure you take a look at postfix upon start then..."
         return 2
       fi
