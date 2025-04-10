@@ -54,7 +54,7 @@ jobs:
             echo "Modifying ${file}..."
             case "${file}" in
               README.md)
-                grep -q "$(cat PODMAN.md)" README.md && cat PODMAN.md README.md > PODME.md && mv PODME.md README.md
+                grep -q "podmanized" README.md && cat PODMAN.md README.md > PODME.md && mv PODME.md README.md
                 ;;
               generate_config.sh)
                 sed -i -e 's/docker/podman/g' -e 's/DOCKER/PODMAN/g' -e 's/Docker/Podman/g' "${file}"
@@ -66,7 +66,7 @@ jobs:
                 sed -i -e 's/ 24/ 4/g' -e 's/\^2/^1/g' -e 's/\^v2/^v1/g' -e 's/2\.X\.X/1.X.X/g' "${file}"
                 sed -i -e 's/PODMAN_COMPOSE_VERSION/DOCKER_COMPOSE_VERSION/g' -e 's/mailcow\/mailcow/yuusou\/mailcow/g' "${file}"
                 sed -i -e 's/podman-compose\.yml/docker-compose.yml/g' -e 's/hub\.podman/hub.docker/g'  "${file}"
-                sed -i -e '/^migrate_podman_nat()/ n;/return 0/!i\  return 0' "${file}"
+                sed -i -e '/^migrate_podman_nat()/a\  return 0' -e ':a; N; /return 0\n  return 0/ {s/return 0\n  return 0/return 0/}; ta' "${file}"
                 ;;
               .gitignore)
                 sed -i '/docker-compose.override\.yml/d' "${file}"
