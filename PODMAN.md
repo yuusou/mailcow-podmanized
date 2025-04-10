@@ -9,6 +9,7 @@ This is an attempt to get mailcow working on podman.
 Results so far:
 * IPv6 disabled and won't be supported for the time being. The ipv6nat container keeps crashing anyway.
 * All the containers (bar ipv6nat) come up and communicate with each other.
+* Only master branch is supported.
 
 Kudos to the mailcow team, show your support by visiting their repo.
 
