@@ -33,7 +33,6 @@ jobs:
 
       - name: Podmanize branches
         run: |
-          #for branch in $(git branch -r | grep -vE 'HEAD|->' | grep 'upstream/' | sed 's|upstream/||'); do
           # Ensure the branch is checked out properly
           if ! git show-ref --verify --quiet "refs/heads/${branch}"; then
             git checkout -b "${branch}" "upstream/${branch}" || true
@@ -79,7 +78,6 @@ jobs:
                 sed -i '/ports:/ { N; /HTTPS/ { N; /HTTP/ d; } }' "$file"
                 ;;
             esac
-          done
 
           if [ -n "$(git status --porcelain)" ]; then
             git pull --strategy-option ours --no-rebase --no-ff
