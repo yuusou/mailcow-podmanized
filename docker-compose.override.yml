@@ -130,13 +130,8 @@ services:
 
 networks:
   mailcow-network:
-    name: mailcow-network
-    driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: br-mailcow
     enable_ipv6: false
     ipam:
-      driver: default
       config:
         - subnet: ${IPV4_NETWORK:-172.22.1}.0/24
 ...

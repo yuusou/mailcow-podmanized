@@ -60,6 +60,7 @@ jobs:
                 sed -i -e 's/docker/podman/g' -e 's/DOCKER/PODMAN/g' -e 's/Docker/Podman/g' "${file}"
                 sed -i -e 's/ 24/ 4/g' -e 's/\^2/^1/g' -e 's/\^v2/^v1/g' -e 's/2\.X\.X/1.X.X/g' "${file}"
                 sed -i -e 's/PODMAN_COMPOSE_VERSION/DOCKER_COMPOSE_VERSION/g' -e 's/mailcow\/mailcow/yuusou\/mailcow/g' "${file}"
+                sed -i -e 's/USE_WATCHDOG=y/USE_WATCHDOG=n/g' "${file}"
                 ;;
               update.sh)
                 sed -i -e 's/docker/podman/g' -e 's/DOCKER/PODMAN/g' -e 's/Docker/Podman/g' "${file}"
