@@ -409,7 +409,7 @@ ALLOW_ADMIN_EMAIL_LOGIN=n
 
 # Enable watchdog (watchdog-mailcow) to restart unhealthy containers
 
-USE_WATCHDOG=y
+USE_WATCHDOG=n
 
 # Send watchdog notifications by mail (sent from watchdog@MAILCOW_HOSTNAME)
 # CAUTION:
