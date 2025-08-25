@@ -1,0 +1,137 @@
+---
+version: "3.7"
+
+services:
+    unbound-mailcow:
+      container_name: unbound-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "unbound.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    mysql-mailcow:
+      container_name: mysql-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "mysql.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    redis-mailcow:
+      container_name: redis-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "redis.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    clamd-mailcow:
+      container_name: clamd-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "clamd.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    rspamd-mailcow:
+      container_name: rspamd-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "rspamd.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    php-fpm-mailcow:
+      container_name: php-fpm-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "php-fpm.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    sogo-mailcow:
+      container_name: sogo-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "sogo.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    dovecot-mailcow:
+      container_name: dovecot-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "dovecot.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    postfix-mailcow:
+      container_name: postfix-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "postfix.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    memcached-mailcow:
+      container_name: memcached-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "memcached.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    nginx-mailcow:
+      container_name: nginx-mailcow
+      ports:
+        - 443:443/tcp
+        - 80:80/tcp
+      networks:
+        mailcow-network:
+          aliases:
+            - "nginx.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    acme-mailcow:
+      container_name: acme-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "acme.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    netfilter-mailcow:
+      container_name: netfilter-mailcow
+
+    watchdog-mailcow:
+      container_name: watchdog-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "watchdog.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    dockerapi-mailcow:
+      container_name: dockerapi-mailcow
+      volumes:
+        - /run/podman/podman.sock:/var/run/docker.sock:ro
+      networks:
+        mailcow-network:
+          aliases:
+            - "dockerapi.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    olefy-mailcow:
+      container_name: olefy-mailcow
+      networks:
+        mailcow-network:
+          aliases:
+            - "olefy.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    ofelia-mailcow:
+      container_name: ofelia-mailcow
+      volumes:
+        - /run/podman/podman.sock:/var/run/docker.sock:ro
+      networks:
+        mailcow-network:
+          aliases:
+            - "ofelia.${COMPOSE_PROJECT_NAME}_mailcow-network"
+
+    ipv6nat-mailcow:
+      profiles:
+      - donotstart
+
+networks:
+  mailcow-network:
+    enable_ipv6: false
+    ipam:
+      config:
+        - subnet: ${IPV4_NETWORK:-172.22.1}.0/24
+...
