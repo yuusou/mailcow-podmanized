@@ -80,7 +80,7 @@ unset DOCKER_COMPOSE_VERSION
 
 get_installed_tools
 
-get_docker_version
+get_podman_version
 
 export LC_ALL=C
 DATE=$(date +%Y-%m-%d_%H_%M_%S)
@@ -90,13 +90,13 @@ while (($#)); do
   case "${1}" in
     --check|-c)
       echo "Checking remote code for updates..."
-      LATEST_REV=$(git ls-remote --exit-code --refs --quiet https://github.com/mailcow/mailcow-dockerized "${BRANCH}" | cut -f1)
+      LATEST_REV=$(git ls-remote --exit-code --refs --quiet https://github.com/yuusou/mailcow-podmanized "${BRANCH}" | cut -f1)
       if [ "$?" -ne 0 ]; then
         echo "A problem occurred while trying to fetch the latest revision from github."
         exit 99
       fi
       if [[ -z $(git log HEAD --pretty=format:"%H" | grep "${LATEST_REV}") ]]; then
-        echo -e "Updated code is available.\nThe changes can be found here: https://github.com/mailcow/mailcow-dockerized/commits/master"
+        echo -e "Updated code is available.\nThe changes can be found here: https://github.com/yuusou/mailcow-podmanized/commits/master"
         git log --date=short --pretty=format:"%ad - %s" "$(git rev-parse --short HEAD)"..origin/master
         exit 0
       else
@@ -112,7 +112,7 @@ while (($#)); do
         exit 99
       fi
       if [[ -z $(git log HEAD --pretty=format:"%H" | grep "${LATEST_TAG_REV}") ]]; then
-        echo -e "New tag is available.\nThe changes can be found here: https://github.com/mailcow/mailcow-dockerized/releases/latest"
+        echo -e "New tag is available.\nThe changes can be found here: https://github.com/yuusou/mailcow-podmanized/releases/latest"
         exit 0
       else
         echo "No updates available."
@@ -134,7 +134,7 @@ while (($#)); do
     ;;
     --gc)
       echo -e "\e[32mCollecting garbage...\e[0m"
-      docker_garbage
+      podman_garbage
       exit 0
     ;;
     --nightly)
@@ -197,7 +197,7 @@ elif [[ "${MAILCOW_HOSTNAME: -1}" == "." ]]; then
   exit 1
 elif [ ${#DOTS} -eq 1 ]; then
   echo -e "\e[33mMAILCOW_HOSTNAME (${MAILCOW_HOSTNAME}) does not contain a Subdomain. This is not fully tested and may cause issues.\e[0m"
-  echo "Find more information about why this message exists here: https://github.com/mailcow/mailcow-dockerized/issues/1572"
+  echo "Find more information about why this message exists here: https://github.com/yuusou/mailcow-podmanized/issues/1572"
   read -r -p "Do you want to proceed anyway? [y/N] " response
   if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
     echo "OK. Proceeding."
@@ -340,7 +340,7 @@ if [ ! "$DEV" ]; then
 fi
 
 if [ ! "$FORCE" ]; then
-  read -r -p "Are you sure you want to update mailcow: dockerized? All containers will be stopped. [y/N] " response
+  read -r -p "Are you sure you want to update mailcow: podmanized? All containers will be stopped. [y/N] " response
   if [[ ! "${response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
     echo "OK, exiting."
     exit 0
@@ -348,7 +348,7 @@ if [ ! "$FORCE" ]; then
   detect_major_update
 fi
 
-echo -e "\e[32mValidating docker-compose stack configuration...\e[0m"
+echo -e "\e[32mValidating podman-compose stack configuration...\e[0m"
 sed -i 's/HTTPS_BIND:-:/HTTPS_BIND:-/g' docker-compose.yml
 sed -i 's/HTTP_BIND:-:/HTTP_BIND:-/g' docker-compose.yml
 if ! $COMPOSE_COMMAND config -q; then
@@ -357,7 +357,7 @@ if ! $COMPOSE_COMMAND config -q; then
 fi
 
 echo -e "\e[32mChecking for conflicting bridges...\e[0m"
-MAILCOW_BRIDGE=$($COMPOSE_COMMAND config | grep -i com.docker.network.bridge.name | cut -d':' -f2)
+MAILCOW_BRIDGE=$($COMPOSE_COMMAND config | grep -i com.podman.network.bridge.name | cut -d':' -f2)
 while read NAT_ID; do
   iptables -t nat -D POSTROUTING "$NAT_ID"
 done < <(iptables -L -vn -t nat --line-numbers | grep "$IPV4_NETWORK" | grep -E 'MASQUERADE.*all' | grep -v "${MAILCOW_BRIDGE}" | cut -d' ' -f1)
@@ -382,7 +382,7 @@ $COMPOSE_COMMAND down
 echo -e "\e[32mChecking for remaining containers...\e[0m"
 sleep 2
 for container in "${MAILCOW_CONTAINERS[@]}"; do
-  docker rm -f "$container" 2> /dev/null
+  podman rm -f "$container" 2> /dev/null
 done
 
 configure_ipv6
@@ -392,7 +392,7 @@ migrate_config_options
 adapt_new_options
 
 if [ ! "$DEV" ]; then
-  DEFAULT_REPO="https://github.com/mailcow/mailcow-dockerized"
+  DEFAULT_REPO="https://github.com/yuusou/mailcow-podmanized"
   CURRENT_REPO=$(git config --get remote.origin.url)
   if [ "$CURRENT_REPO" != "$DEFAULT_REPO" ]; then
     echo "The Repository currently used is not the default mailcow Repository."
@@ -504,8 +504,8 @@ if [ $? -eq 0 ]; then
   echo '  $MAILCOW_GIT_VERSION="'$mailcow_git_version'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_LAST_GIT_VERSION="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_OWNER="mailcow";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_REPO="mailcow-dockerized";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_URL="https://github.com/mailcow/mailcow-dockerized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_REPO="mailcow-podmanized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_URL="https://github.com/yuusou/mailcow-podmanized";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT="'$mailcow_git_commit'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT_DATE="'$mailcow_git_commit_date'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_BRANCH="'$BRANCH'";' >> data/web/inc/app_info.inc.php
@@ -516,8 +516,8 @@ else
   echo '  $MAILCOW_GIT_VERSION="'$mailcow_git_version'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_LAST_GIT_VERSION="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_OWNER="mailcow";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_REPO="mailcow-dockerized";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_URL="https://github.com/mailcow/mailcow-dockerized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_REPO="mailcow-podmanized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_URL="https://github.com/yuusou/mailcow-podmanized";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT_DATE="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_BRANCH="'$BRANCH'";' >> data/web/inc/app_info.inc.php
@@ -535,7 +535,7 @@ else
 fi
 
 echo -e "\e[32mCollecting garbage...\e[0m"
-docker_garbage
+podman_garbage
 
 # Run post-update-hook
 if [ -f "${SCRIPT_DIR}/post_update_hook.sh" ]; then

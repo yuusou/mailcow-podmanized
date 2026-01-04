@@ -1,0 +1,118 @@
+name: Sync and Modify Mailcow for Podman
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions: write-all
+
+jobs:
+  podmanize-master:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MAILCOW_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/mailcow/mailcow-dockerized.git
+          git fetch upstream --prune
+          git fetch origin --prune
+
+      - name: Sync-discard and reset to upstream/master
+        run: |
+          git checkout master || git checkout -b master
+
+          # Preserve local-only files
+          cp -f PODMAN.md /tmp/PODMAN.md || true
+          cp -f docker-compose.override.yml /tmp/docker-compose.override.yml || true
+          cp -f .github/workflows/podmanize.yml /tmp/podmanize.yml || true
+
+          # Reset branch to upstream/master
+          git reset --hard upstream/master
+          git clean -fdx  # Remove any files not in upstream to fully mirror
+
+          # Restore preserved files
+          cp -f /tmp/PODMAN.md PODMAN.md || true
+          cp -f /tmp/docker-compose.override.yml docker-compose.override.yml || true
+          cp -f /tmp/podmanize.yml .github/workflows/podmanize.yml || true
+          git add PODMAN.md docker-compose.override.yml .github/workflows/podmanize.yml || true
+
+      - name: Apply Podman modifications
+        run: |
+          changed_files=("README.md" "_modules/scripts/core.sh" "generate_config.sh" "update.sh" ".gitignore" ".gitignore" "docker-compose.yml")
+          for file in "${changed_files[@]}"; do
+            echo "Modifying ${file}..."
+            if [[ $file =~ ^(_modules/scripts/core\.sh|generate_config\.sh|update\.sh)$ ]]; then
+              sed -i -e 's/docker/podman/g' -e 's/DOCKER/PODMAN/g' -e 's/Docker/Podman/g' "${file}"
+              sed -i -e 's/ 24/ 4/g' -e 's/\^2/^1.5/g' -e 's/\^v2/^v1.5/g' -e 's/2\.X\.X/1.5.X/g' "${file}"
+              sed -i -e 's/PODMAN_COMPOSE_VERSION/DOCKER_COMPOSE_VERSION/g' -e 's/mailcow\/mailcow/yuusou\/mailcow/g' "${file}"
+              sed -i -e 's/podman-compose\.yml/docker-compose.yml/g' -e 's/hub\.podman/hub.docker/g' "${file}"
+            fi
+
+            case "${file}" in
+              README.md)
+                cat PODMAN.md <(git show upstream/master:README.md) > "${file}"
+                ;;
+              _modules/scripts/core.sh)
+                sed -i '35s/if /if ! /' "${file}"
+                sed -i '51s/then/rc=$?; [[ $rc -eq 0 || $rc -eq 255 ]]; then/' "${file}"
+                ;;
+              .gitignore)
+                sed -i '/docker-compose.override\.yml/d' "${file}"
+                ;;
+              docker-compose.yml)
+                sed -i 's/_BIND:-\}/_BIND:-0.0.0.0}/g' "${file}"
+                ;;
+            esac
+            git add "${file}" || true
+          done
+
+      - name: Commit and push changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "Automated podman adjustments for upstream/master"
+            git push origin master --force
+          fi
+
+      - name: Podmanize latest tag and release
+        env:
+          MAILCOW_TOKEN: ${{ secrets.MAILCOW_TOKEN }}
+        run: |
+          # Get the latest upstream tag
+          tag=$(git ls-remote --tags upstream | grep -v '\^{}' | sort -t/ -k3,3V | tail -n 1 | sed 's|.*/||')
+
+          # Get the upstream info
+          release_info=$(curl -s "https://api.github.com/repos/mailcow/mailcow-dockerized/releases/tags/$tag")
+
+          # Extract release name and body safely
+          release_name=$(echo "$release_info" | jq -r '.name // ""')
+          release_body=$(echo "$release_info" | jq -r '.body // ""')
+
+          # Check if release already exists
+          if curl -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" | grep -q '"id":'; then
+            echo "Release for tag ${tag} already exists. Skipping."
+            exit 0
+          fi
+
+          # Build JSON safely with jq and create release
+          jq -n --arg tag "$tag" --arg name "$release_name" --arg body "$release_body" '{
+          tag_name: $tag,
+          name: $name,
+          body: $body,
+          draft: false,
+          prerelease: false
+          }' | curl -s -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" \
+            -H "Authorization: token $MAILCOW_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d @-
