@@ -4,7 +4,7 @@ function init_db_schema()
   try {
     global $pdo;
 
-    $db_version = "10312025_0525";
+    $db_version = "16122025_1230";
 
     $stmt = $pdo->query("SHOW TABLES LIKE 'versions'");
     $num_results = count($stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -185,6 +185,7 @@ function init_db_schema()
           "public_comment" => "TEXT",
           "sogo_visible" => "TINYINT(1) NOT NULL DEFAULT '1'",
           "internal" => "TINYINT(1) NOT NULL DEFAULT '0'",
+          "sender_allowed" => "TINYINT(1) NOT NULL DEFAULT '1'",
           "active" => "TINYINT(1) NOT NULL DEFAULT '1'"
         ),
         "keys" => array(
