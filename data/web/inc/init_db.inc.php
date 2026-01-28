@@ -4,7 +4,7 @@ function init_db_schema()
   try {
     global $pdo;
 
-    $db_version = "10312025_0525";
+    $db_version = "28012026_1000";
 
     $stmt = $pdo->query("SHOW TABLES LIKE 'versions'");
     $num_results = count($stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -1394,6 +1394,8 @@ function init_db_schema()
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.imap_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.imap_access') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.pop3_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.pop3_access') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.smtp_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.smtp_access') IS NULL;");
+    $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.eas_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.eas_access') IS NULL;");
+    $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.dav_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.dav_access') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.mailbox_format', \"maildir:\") WHERE JSON_VALUE(`attributes`, '$.mailbox_format') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.quarantine_notification', \"never\") WHERE JSON_VALUE(`attributes`, '$.quarantine_notification') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.quarantine_category', \"reject\") WHERE JSON_VALUE(`attributes`, '$.quarantine_category') IS NULL;");
