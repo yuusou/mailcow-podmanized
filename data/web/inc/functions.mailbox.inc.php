@@ -1078,6 +1078,8 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
             $_data['pop3_access'] = (in_array('pop3', $_data['protocol_access'])) ? 1 : 0;
             $_data['smtp_access'] = (in_array('smtp', $_data['protocol_access'])) ? 1 : 0;
             $_data['sieve_access'] = (in_array('sieve', $_data['protocol_access'])) ? 1 : 0;
+            $_data['eas_access'] = (in_array('eas', $_data['protocol_access'])) ? 1 : 0;
+            $_data['dav_access'] = (in_array('dav', $_data['protocol_access'])) ? 1 : 0;
           }
           $active = (isset($_data['active'])) ? intval($_data['active']) : intval($MAILBOX_DEFAULT_ATTRIBUTES['active']);
           $force_pw_update = (isset($_data['force_pw_update'])) ? intval($_data['force_pw_update']) : intval($MAILBOX_DEFAULT_ATTRIBUTES['force_pw_update']);
@@ -1088,6 +1090,8 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
           $pop3_access = (isset($_data['pop3_access'])) ? intval($_data['pop3_access']) : intval($MAILBOX_DEFAULT_ATTRIBUTES['pop3_access']);
           $smtp_access = (isset($_data['smtp_access'])) ? intval($_data['smtp_access']) : intval($MAILBOX_DEFAULT_ATTRIBUTES['smtp_access']);
           $sieve_access = (isset($_data['sieve_access'])) ? intval($_data['sieve_access']) : intval($MAILBOX_DEFAULT_ATTRIBUTES['sieve_access']);
+          $eas_access = (isset($_data['eas_access'])) ? intval($_data['eas_access']) : intval($MAILBOX_DEFAULT_ATTRIBUTES['eas_access']);
+          $dav_access = (isset($_data['dav_access'])) ? intval($_data['dav_access']) : intval($MAILBOX_DEFAULT_ATTRIBUTES['dav_access']);
           $relayhost = (isset($_data['relayhost'])) ? intval($_data['relayhost']) : 0;
           $quarantine_notification = (isset($_data['quarantine_notification'])) ? strval($_data['quarantine_notification']) : strval($MAILBOX_DEFAULT_ATTRIBUTES['quarantine_notification']);
           $quarantine_category = (isset($_data['quarantine_category'])) ? strval($_data['quarantine_category']) : strval($MAILBOX_DEFAULT_ATTRIBUTES['quarantine_category']);
@@ -1106,6 +1110,8 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
               'pop3_access' => strval($pop3_access),
               'smtp_access' => strval($smtp_access),
               'sieve_access' => strval($sieve_access),
+              'eas_access' => strval($eas_access),
+              'dav_access' => strval($dav_access),
               'relayhost' => strval($relayhost),
               'passwd_update' => time(),
               'mailbox_format' => strval($MAILBOX_DEFAULT_ATTRIBUTES['mailbox_format']),
@@ -1724,12 +1730,16 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
             $attr['pop3_access'] = (in_array('pop3', $_data['protocol_access'])) ? 1 : 0;
             $attr['smtp_access'] = (in_array('smtp', $_data['protocol_access'])) ? 1 : 0;
             $attr['sieve_access'] = (in_array('sieve', $_data['protocol_access'])) ? 1 : 0;
+            $attr['eas_access'] = (in_array('eas', $_data['protocol_access'])) ? 1 : 0;
+            $attr['dav_access'] = (in_array('dav', $_data['protocol_access'])) ? 1 : 0;
           }
           else {
             $attr['imap_access'] = intval($MAILBOX_DEFAULT_ATTRIBUTES['imap_access']);
             $attr['pop3_access'] = intval($MAILBOX_DEFAULT_ATTRIBUTES['pop3_access']);
             $attr['smtp_access'] = intval($MAILBOX_DEFAULT_ATTRIBUTES['smtp_access']);
             $attr['sieve_access'] = intval($MAILBOX_DEFAULT_ATTRIBUTES['sieve_access']);
+            $attr['eas_access'] = intval($MAILBOX_DEFAULT_ATTRIBUTES['eas_access']);
+            $attr['dav_access'] = intval($MAILBOX_DEFAULT_ATTRIBUTES['dav_access']);
           }
           if (isset($_data['acl'])) {
             $_data['acl'] = (array)$_data['acl'];
@@ -3049,6 +3059,8 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
               $_data['pop3_access'] = (in_array('pop3', $_data['protocol_access'])) ? 1 : 0;
               $_data['smtp_access'] = (in_array('smtp', $_data['protocol_access'])) ? 1 : 0;
               $_data['sieve_access'] = (in_array('sieve', $_data['protocol_access'])) ? 1 : 0;
+              $_data['eas_access'] = (in_array('eas', $_data['protocol_access'])) ? 1 : 0;
+              $_data['dav_access'] = (in_array('dav', $_data['protocol_access'])) ? 1 : 0;
             }
             if (!empty($is_now)) {
               $active               = (isset($_data['active'])) ? intval($_data['active']) : $is_now['active'];
@@ -3058,6 +3070,8 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
               (int)$pop3_access     = (isset($_data['pop3_access']) && hasACLAccess("protocol_access")) ? intval($_data['pop3_access']) : intval($is_now['attributes']['pop3_access']);
               (int)$smtp_access     = (isset($_data['smtp_access']) && hasACLAccess("protocol_access")) ? intval($_data['smtp_access']) : intval($is_now['attributes']['smtp_access']);
               (int)$sieve_access    = (isset($_data['sieve_access']) && hasACLAccess("protocol_access")) ? intval($_data['sieve_access']) : intval($is_now['attributes']['sieve_access']);
+              (int)$eas_access     = (isset($_data['eas_access']) && hasACLAccess("protocol_access")) ? intval($_data['eas_access']) : intval($is_now['attributes']['eas_access']);
+              (int)$dav_access    = (isset($_data['dav_access']) && hasACLAccess("protocol_access")) ? intval($_data['dav_access']) : intval($is_now['attributes']['dav_access']);
               (int)$relayhost       = (isset($_data['relayhost']) && hasACLAccess("mailbox_relayhost")) ? intval($_data['relayhost']) : intval($is_now['attributes']['relayhost']);
               (int)$quota_m         = (isset_has_content($_data['quota'])) ? intval($_data['quota']) : ($is_now['quota'] / 1048576);
               $name                 = (!empty($_data['name'])) ? ltrim(rtrim($_data['name'], '>'), '<') : $is_now['name'];
@@ -3351,6 +3365,8 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
                   `attributes` = JSON_SET(`attributes`, '$.pop3_access', :pop3_access),
                   `attributes` = JSON_SET(`attributes`, '$.relayhost', :relayhost),
                   `attributes` = JSON_SET(`attributes`, '$.smtp_access', :smtp_access),
+                  `attributes` = JSON_SET(`attributes`, '$.eas_access', :eas_access),
+                  `attributes` = JSON_SET(`attributes`, '$.dav_access', :dav_access),
                   `attributes` = JSON_SET(`attributes`, '$.recovery_email', :recovery_email),
                   `attributes` = JSON_SET(`attributes`, '$.attribute_hash', :attribute_hash)
                     WHERE `username` = :username");
@@ -3365,6 +3381,8 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
                 ':pop3_access' => $pop3_access,
                 ':sieve_access' => $sieve_access,
                 ':smtp_access' => $smtp_access,
+                ':eas_access' => $eas_access,
+                ':dav_access' => $dav_access,
                 ':recovery_email' => $pw_recovery_email,
                 ':relayhost' => $relayhost,
                 ':username' => $username,
@@ -3747,6 +3765,8 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
               $attr['pop3_access'] = (in_array('pop3', $_data['protocol_access'])) ? 1 : 0;
               $attr['smtp_access'] = (in_array('smtp', $_data['protocol_access'])) ? 1 : 0;
               $attr['sieve_access'] = (in_array('sieve', $_data['protocol_access'])) ? 1 : 0;
+              $attr['eas_access'] = (in_array('eas', $_data['protocol_access'])) ? 1 : 0;
+              $attr['dav_access'] = (in_array('dav', $_data['protocol_access'])) ? 1 : 0;
             }
             else {
               foreach ($is_now as $key => $value){
