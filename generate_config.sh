@@ -28,12 +28,12 @@ source _modules/scripts/ipv6_controller.sh
 set -o pipefail
 
 get_installed_tools
-get_docker_version
+get_podman_version
 
-if [[ $docker_version -lt 24 ]]; then
-  echo -e "\e[31mCannot find Docker with a Version higher or equals 24.0.0\e[0m"
-  echo -e "\e[33mmailcow needs a newer Docker version to work properly...\e[0m"
-  echo -e "\e[31mPlease update your Docker installation... exiting\e[0m"
+if [[ $podman_version -lt 4 ]]; then
+  echo -e "\e[31mCannot find Podman with a Version higher or equals 4.0.0\e[0m"
+  echo -e "\e[33mmailcow needs a newer Podman version to work properly...\e[0m"
+  echo -e "\e[31mPlease update your Podman installation... exiting\e[0m"
   exit 1
 fi
 
@@ -66,14 +66,14 @@ while [ -z "${MAILCOW_HOSTNAME}" ]; do
   if [ ${#DOTS} -lt 1 ]; then
     echo -e "\e[31mMAILCOW_HOSTNAME (${MAILCOW_HOSTNAME}) is not a FQDN!\e[0m"
     sleep 1
-    echo "Please change it to a FQDN and redeploy the stack with docker(-)compose up -d"
+    echo "Please change it to a FQDN and redeploy the stack with podman(-)compose up -d"
     exit 1
   elif [[ "${MAILCOW_HOSTNAME: -1}" == "." ]]; then
     echo "MAILCOW_HOSTNAME (${MAILCOW_HOSTNAME}) is ending with a dot. This is not a valid FQDN!"
     exit 1
   elif [ ${#DOTS} -eq 1 ]; then
     echo -e "\e[33mMAILCOW_HOSTNAME (${MAILCOW_HOSTNAME}) does not contain a Subdomain. This is not fully tested and may cause issues.\e[0m"
-    echo "Find more information about why this message exists here: https://github.com/mailcow/mailcow-dockerized/issues/1572"
+    echo "Find more information about why this message exists here: https://github.com/yuusou/mailcow-podmanized/issues/1572"
     read -r -p "Do you want to proceed anyway? [y/N] " response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
       echo "OK. Procceding."
@@ -200,7 +200,7 @@ REDISPASS=$(LC_ALL=C </dev/urandom tr -dc A-Za-z0-9 2> /dev/null | head -c 28)
 
 # You should use HTTPS, but in case of SSL offloaded reverse proxies:
 # Might be important: This will also change the binding within the container.
-# If you use a proxy within Docker, point it to the ports you set below.
+# If you use a proxy within Podman, point it to the ports you set below.
 # Do _not_ use IP:PORT in HTTP(S)_BIND or HTTP(S)_PORT
 # IMPORTANT: Do not use port 8081, 9081, 9082 or 65510!
 # Example: HTTP_BIND=1.2.3.4
@@ -239,9 +239,9 @@ TZ=${MAILCOW_TZ}
 
 # Fixed project name
 # Please use lowercase letters only
-COMPOSE_PROJECT_NAME=mailcowdockerized
+COMPOSE_PROJECT_NAME=mailcowpodmanized
 
-# Used Docker Compose version
+# Used Podman Compose version
 # Switch here between native (compose plugin) and standalone
 # For more information take a look at the mailcow docs regarding the configuration options.
 # Normally this should be untouched but if you decided to use either of those you can switch it manually here.
@@ -419,7 +419,7 @@ DOVECOT_MASTER_PASS=
 
 # WebAuthn device manufacturer verification
 # After setting WEBAUTHN_ONLY_TRUSTED_VENDORS=y only devices from trusted manufacturers are allowed
-# root certificates can be placed for validation under mailcow-dockerized/data/web/inc/lib/WebAuthn/rootCertificates
+# root certificates can be placed for validation under mailcow-podmanized/data/web/inc/lib/WebAuthn/rootCertificates
 WEBAUTHN_ONLY_TRUSTED_VENDORS=n
 
 # Spamhaus Data Query Service Key
@@ -433,10 +433,10 @@ SPAMHAUS_DQS_KEY=
 # This variable controls the usage of IPv6 within mailcow.
 # Can either be true or false | Defaults to true
 # WARNING: MAKE SURE TO PROPERLY CONFIGURE IPv6 ON YOUR HOST FIRST BEFORE ENABLING THIS AS FAULTY CONFIGURATIONS CAN LEAD TO OPEN RELAYS!
-# A COMPLETE DOCKER STACK REBUILD (compose down && compose up -d) IS NEEDED TO APPLY THIS.
+# A COMPLETE PODMAN STACK REBUILD (compose down && compose up -d) IS NEEDED TO APPLY THIS.
 ENABLE_IPV6=${IPV6_BOOL}
 
-# Prevent netfilter from setting an iptables/nftables rule to isolate the mailcow docker network - y/n
+# Prevent netfilter from setting an iptables/nftables rule to isolate the mailcow podman network - y/n
 # CAUTION: Disabling this may expose container ports to other neighbors on the same subnet, even if the ports are bound to localhost
 DISABLE_NETFILTER_ISOLATION_RULE=n
 EOF
@@ -494,8 +494,8 @@ if [ $? -eq 0 ]; then
   echo '  $MAILCOW_GIT_VERSION="'$mailcow_git_version'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_LAST_GIT_VERSION="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_OWNER="mailcow";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_REPO="mailcow-dockerized";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_URL="https://github.com/mailcow/mailcow-dockerized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_REPO="mailcow-podmanized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_URL="https://github.com/yuusou/mailcow-podmanized";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT="'$mailcow_git_commit'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT_DATE="'$mailcow_git_commit_date'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_BRANCH="'$git_branch'";' >> data/web/inc/app_info.inc.php
@@ -506,8 +506,8 @@ else
   echo '  $MAILCOW_GIT_VERSION="'$mailcow_git_version'";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_LAST_GIT_VERSION="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_OWNER="mailcow";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_REPO="mailcow-dockerized";' >> data/web/inc/app_info.inc.php
-  echo '  $MAILCOW_GIT_URL="https://github.com/mailcow/mailcow-dockerized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_REPO="mailcow-podmanized";' >> data/web/inc/app_info.inc.php
+  echo '  $MAILCOW_GIT_URL="https://github.com/yuusou/mailcow-podmanized";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_GIT_COMMIT_DATE="";' >> data/web/inc/app_info.inc.php
   echo '  $MAILCOW_BRANCH="'$git_branch'";' >> data/web/inc/app_info.inc.php
