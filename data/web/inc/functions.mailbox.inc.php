@@ -6126,7 +6126,6 @@ function mailbox($_action, $_type, $_data = null, $_extra = null) {
             // Track affected mailboxes for SOGo update
             $update_sogo_mailboxes[] = $username;
           }
-          return true;
         break;
         case 'mailbox_templates':
           if ($_SESSION['mailcow_cc_role'] != "admin") {
