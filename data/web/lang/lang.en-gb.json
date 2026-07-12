@@ -1087,7 +1087,7 @@
         "rspamd_result": "Rspamd result",
         "sender": "Sender (SMTP)",
         "sender_header": "Sender (\"From\" header)",
-        "settings_info": "Maximum amount of elements to be quarantined: %s<br>Maximum email size: %s MiB",
+        "settings_info": "Maximum amount of elements to be quarantined (per mailbox): %s<br>Maximum email size: %s MiB",
         "show_item": "Show item",
         "spam": "Spam",
         "spam_score": "Score",

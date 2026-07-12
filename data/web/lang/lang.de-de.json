@@ -1086,7 +1086,7 @@
         "rspamd_result": "Rspamd-Ergebnis",
         "sender": "Sender (SMTP)",
         "sender_header": "Sender (\"From\"-Header)",
-        "settings_info": "Maximale Anzahl der zurückgehaltenen E-Mails: %s<br>Maximale Größe einer zu speichernden E-Mail: %s MiB",
+        "settings_info": "Maximale Anzahl der zurückgehaltenen E-Mails (pro Mailbox): %s<br>Maximale Größe einer zu speichernden E-Mail: %s MiB",
         "show_item": "Details",
         "spam": "Spam",
         "spam_score": "Bewertung",
