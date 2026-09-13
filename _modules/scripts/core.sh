@@ -16,7 +16,7 @@ NC='\e[0m'
 caller="${BASH_SOURCE[1]##*/}"
 
 get_installed_tools(){
-    for bin in openssl curl docker git awk sha1sum grep cut jq; do
+    for bin in openssl curl podman git awk sha1sum grep cut jq; do
         if [[ -z $(command -v ${bin}) ]]; then
           echo "Error: Cannot find command '${bin}'. Cannot proceed."
           echo "Solution: Please review system requirements and install requirements. Then, re-run the script."
@@ -32,48 +32,48 @@ get_installed_tools(){
     if sed --help 2>&1 | head -n 1 | grep -q -i "busybox"; then echo -e "${LIGHT_RED}BusyBox sed detected, please install gnu sed, \"apk add --no-cache --upgrade sed\"${NC}"; exit 1; fi
 }
 
-get_docker_version(){
-    # Check Docker Version (need at least 24.X)
-    docker_version=$(docker version --format '{{.Server.Version}}' | cut -d '.' -f 1)
+get_podman_version(){
+    # Check Podman Version (need at least 4.X)
+    podman_version=$(podman version --format '{{.Server.Version}}' | cut -d '.' -f 1)
 }
 
 get_compose_type(){
-  if docker compose > /dev/null 2>&1; then
-    if docker compose version --short | grep -e "^[2-9]\." -e "^v[2-9]\." -e "^[1-9][0-9]\." -e "^v[1-9][0-9]\." > /dev/null 2>&1; then
+  if podman compose > /dev/null 2>&1; then
+    if podman compose version --short | grep -e "^[2-9]\." -e "^v[2-9]\." -e "^[1-9][0-9]\." -e "^v[1-9][0-9]\." > /dev/null 2>&1; then
       COMPOSE_VERSION=native
-      COMPOSE_COMMAND="docker compose"
+      COMPOSE_COMMAND="podman compose"
       if [[ "$caller" == "update.sh" ]]; then
         sed -i 's/^DOCKER_COMPOSE_VERSION=.*/DOCKER_COMPOSE_VERSION=native/' "$SCRIPT_DIR/mailcow.conf"
       fi
-      echo -e "\e[33mFound Docker Compose Plugin (native).\e[0m"
+      echo -e "\e[33mFound Podman Compose Plugin (native).\e[0m"
       echo -e "\e[33mSetting the DOCKER_COMPOSE_VERSION Variable to native\e[0m"
       sleep 2
       echo -e "\e[33mNotice: You'll have to update this Compose Version via your Package Manager manually!\e[0m"
     else
-      echo -e "\e[31mCannot find Docker Compose with a Version Higher than 2.X.X.\e[0m"
+      echo -e "\e[31mCannot find Podman Compose with a Version Higher than 1.5.X.\e[0m"
       echo -e "\e[31mPlease update/install it manually regarding to this doc site: https://docs.mailcow.email/install/\e[0m"
       exit 1
     fi
-  elif docker-compose > /dev/null 2>&1; then
-  if ! [[ $(alias docker-compose 2> /dev/null) ]] ; then
-    if docker-compose version --short | grep -e "^[2-9]\." -e "^[1-9][0-9]\." > /dev/null 2>&1; then
+  elif podman-compose > /dev/null 2>&1; then
+  if ! [[ $(alias podman-compose 2> /dev/null) ]] ; then
+    if podman-compose version --short | grep -e "^[2-9]\." -e "^[1-9][0-9]\." > /dev/null 2>&1; then
       COMPOSE_VERSION=standalone
-      COMPOSE_COMMAND="docker-compose"
+      COMPOSE_COMMAND="podman-compose"
       if [[ "$caller" == "update.sh" ]]; then
         sed -i 's/^DOCKER_COMPOSE_VERSION=.*/DOCKER_COMPOSE_VERSION=standalone/' "$SCRIPT_DIR/mailcow.conf"
       fi
-      echo -e "\e[33mFound Docker Compose Standalone.\e[0m"
+      echo -e "\e[33mFound Podman Compose Standalone.\e[0m"
       echo -e "\e[33mSetting the DOCKER_COMPOSE_VERSION Variable to standalone\e[0m"
       sleep 2
-      echo -e "\e[33mNotice: For an automatic update of docker-compose please use the update_compose.sh scripts located at the helper-scripts folder.\e[0m"
+      echo -e "\e[33mNotice: For an automatic update of podman-compose please use the update_compose.sh scripts located at the helper-scripts folder.\e[0m"
     else
-      echo -e "\e[31mCannot find Docker Compose with a Version Higher than 2.X.X.\e[0m"
+      echo -e "\e[31mCannot find Podman Compose with a Version Higher than 1.5.X.\e[0m"
       echo -e "\e[31mPlease update/install manually regarding to this doc site: https://docs.mailcow.email/install/\e[0m"
       exit 1
     fi
   fi
   else
-    echo -e "\e[31mCannot find Docker Compose.\e[0m"
+    echo -e "\e[31mCannot find Podman Compose.\e[0m"
     echo -e "\e[31mPlease install it regarding to this doc site: https://docs.mailcow.email/install/\e[0m"
     exit 1
   fi
@@ -120,7 +120,7 @@ prefetch_images() {
   git fetch origin #${BRANCH}
   while read image; do
     RET_C=0
-    until docker pull "${image}"; do
+    until podman pull "${image}"; do
       RET_C=$((RET_C + 1))
       echo -e "\e[33m\nError pulling $image, retrying...\e[0m"
       [ ${RET_C} -gt 3 ] && { echo -e "\e[31m\nToo many failed retries, exiting\e[0m"; exit 1; }
@@ -129,14 +129,14 @@ prefetch_images() {
   done < <(git show "origin/${BRANCH}:docker-compose.yml" | grep "image:" | awk '{ gsub("image:","", $3); print $2 }')
 }
 
-docker_garbage() {
+podman_garbage() {
   SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )"
   IMGS_TO_DELETE=()
 
   declare -A IMAGES_INFO
   COMPOSE_IMAGES=($(grep -oP "image: \K(ghcr\.io/)?mailcow.+" "${SCRIPT_DIR}/docker-compose.yml"))
 
-  for existing_image in $(docker images --format "{{.ID}}:{{.Repository}}:{{.Tag}}" | grep -E '(mailcow/|ghcr\.io/mailcow/)'); do
+  for existing_image in $(podman images --format "{{.ID}}:{{.Repository}}:{{.Tag}}" | grep -E '(mailcow/|ghcr\.io/mailcow/)'); do
       ID=$(echo "$existing_image" | cut -d ':' -f 1)
       REPOSITORY=$(echo "$existing_image" | cut -d ':' -f 2)
       TAG=$(echo "$existing_image" | cut -d ':' -f 3)
@@ -164,16 +164,16 @@ docker_garbage() {
       if [ -z "$FORCE" ]; then
           read -r -p "Do you want to delete them to free up some space? [y/N] " response
           if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-              docker rmi ${IMGS_TO_DELETE[*]}
+              podman rmi ${IMGS_TO_DELETE[*]}
           else
               echo "OK, skipped."
           fi
       else
           echo "Running in forced mode! Force removing old mailcow images..."
-          docker rmi ${IMGS_TO_DELETE[*]}
+          podman rmi ${IMGS_TO_DELETE[*]}
       fi
       echo -e "\e[32mFurther cleanup...\e[0m"
-      echo "If you want to cleanup further garbage collected by Docker, please make sure all containers are up and running before cleaning your system by executing \"docker system prune\""
+      echo "If you want to cleanup further garbage collected by Podman, please make sure all containers are up and running before cleaning your system by executing \"podman system prune\""
   fi
 }
 
@@ -201,7 +201,7 @@ detect_major_update() {
     if [[ -z "$current_version" ]]; then
       return 1
     fi
-    release_url="https://github.com/mailcow/mailcow-dockerized/releases/tag"
+    release_url="https://github.com/yuusou/mailcow-podmanized/releases/tag"
 
     updates_to_apply=()
 
